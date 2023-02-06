@@ -199,6 +199,7 @@ int baseboardIoctl(int fd, unsigned int request, void *data)
       jvsCommand.destAddress = _data[3];
       jvsCommand.destSize = _data[4];
       memcpy(inputBuffer, &sharedMemory[jvsCommand.srcAddress], jvsCommand.srcSize);
+
       if (getConfig()->emulateJVS)
       {
         processPacket();
