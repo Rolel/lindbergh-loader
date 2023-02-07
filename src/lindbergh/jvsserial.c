@@ -20,7 +20,7 @@
 #define CTS_ON_RETRY 20
 
 // Used to read JVS frame in a non-blocking way
-struct jvsFrame jvsFrameBuffer;
+jvsFrame jvsFrameBuffer;
 pthread_mutex_t jvsBuffer_lock = PTHREAD_MUTEX_INITIALIZER;
 
 
@@ -241,7 +241,7 @@ int startJVSFrameThread(int * fd) {
     printf("SERIAL thread debug: starting thread.\n");
     printf("Thread has file descriptor: %d\n", fdlocal);
 
-    // Clean shared struct buffer
+    // Clean shared JVS frame buffer
     jvsFrameBuffer.ready = 0;
     jvsFrameBuffer.size = 0;
     memset(jvsFrameBuffer.buffer, 0, JVSBUFFER_SIZE);
@@ -262,9 +262,9 @@ int startJVSFrameThread(int * fd) {
  * Return a jvsFrame structure with empty or full data, no in between
  * @return
  */
-struct jvsFrame readJVSFrameFromThread() {
+jvsFrame readJVSFrameFromThread() {
 
-    struct jvsFrame frame;
+    jvsFrame frame;
     // Lock while reading/writing to shared frame
     pthread_mutex_lock(&jvsBuffer_lock);
 

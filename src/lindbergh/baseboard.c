@@ -225,7 +225,7 @@ void baseboardIoctlReceive(uint32_t *_data) {
                 _data[1] = getCTS(jvsFileDescriptor);
                 */
 
-                struct jvsFrame frame = readJVSFrameFromThread();
+                jvsFrame frame = readJVSFrameFromThread();
                 memcpy(&sharedMemory[jvsCommand.destAddress], frame.buffer, frame.size);
 
                 _data[2] = jvsCommand.destAddress;
