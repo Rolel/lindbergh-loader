@@ -4,15 +4,9 @@
 #include <fcntl.h>   /* File control definitions */
 #include <errno.h>   /* Error number definitions */
 #include <termios.h> /* POSIX terminal control definitions */
-#include <stdarg.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <time.h>
-#include <linux/serial.h>
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <pthread.h>
+#include <sys/ioctl.h> /* Ioctl function to control device drivers in the kernel */
+#include <stdlib.h>    /* Standard library functions like malloc, free, exit, and atoi */
+#include <pthread.h>   /* POSIX threads API to create and manage threads in the program */
 
 #include "jvsserial.h"
 
