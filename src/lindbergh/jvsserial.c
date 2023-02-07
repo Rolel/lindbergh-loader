@@ -23,10 +23,6 @@
 struct jvsFrame jvsFrameBuffer;
 pthread_mutex_t jvsBuffer_lock = PTHREAD_MUTEX_INITIALIZER;
 
-// TODO: learn how to pass a file descriptor to a thread without failing miserably
-int jvsBuffer_fd = -1;
-
-
 
 /**
  * Open the serial interface and return a file descriptor
@@ -96,7 +92,6 @@ int initJVSSerial(int fd) {
     // options.c_cc[VMIN] = 0;
     // options.c_cc[VTIME] = 0;
 
-    // TODO: fix polling to slow down IO usage but still allow CTS to trigger a "data ready"
     // With threaded serial read we should rely on a blocking read() function so the loop doesn't run crazy => read() could block indefinitely.
     // options.c_cc[VMIN] = 1;
     // options.c_cc[VTIME] = 0;
@@ -113,9 +108,6 @@ int initJVSSerial(int fd) {
     int flags = fcntl(fd, F_GETFL, 0);
     fcntl(fd, F_SETFL, flags | O_NONBLOCK);
     */
-
-    // Start a thread to listen for serial port
-    startJVSFrameThread(fd);
 
     return 0;
 }
@@ -154,23 +146,6 @@ int getCTS(int fd) {
     return (status & TIOCM_CTS) != 0;
 }
 
-
-int isJVSFrameReady() {
-    int ready = 0;
-    // Lock while
-    pthread_mutex_lock(&jvsBuffer_lock);
-    ready = jvsFrameBuffer.ready;
-
-    // TODO: jvsBuffer_fd dirty thing
-    if (getCTS(jvsBuffer_fd) > 0 && jvsFrameBuffer.ready == 0) {
-        usleep(5000);
-        jvsFrameBuffer.ctsCounter++;
-    }
-    pthread_mutex_unlock(&jvsBuffer_lock);
-
-    return ready;
-}
-
 /**
  * In charge of reading serial port and bufferize JVS frame
  * @param arg
@@ -178,22 +153,10 @@ int isJVSFrameReady() {
  */
 void *readJVSFrameThread(void * arg)
 {
-    int fd = *(int *)arg;
+    int fd = *((int *) arg);
     int byteCount, bytesRead, ackSize, waitForEnd;
     int ctsRetry = CTS_ON_RETRY;
     char localBuffer[JVSBUFFER_SIZE];
-
-
-    // TODO: learn how to pass a file descriptor to a thread without failing miserably
-    fd = jvsBuffer_fd;
-    printf("Inside thread has file descriptor: %d\n", fd);
-    int flags = fcntl(fd, F_GETFL);
-    if (flags == -1)
-    {
-        perror("Failed to get file flags");
-    }
-    printf("File flags: 0x%x\n", flags);
-
 
     while (1)
     {
@@ -273,20 +236,18 @@ void *readJVSFrameThread(void * arg)
  * @param fd
  * @return 0|1
  */
-int startJVSFrameThread(int fd) {
+int startJVSFrameThread(int * fd) {
+    int fdlocal = *((int *) fd);
     printf("SERIAL thread debug: starting thread.\n");
-    printf("Thread has file descriptor: %d\n", fd);
-
-// TODO: learn how to pass a file descriptor to a thread without failing miserably
-    jvsBuffer_fd = fd;
+    printf("Thread has file descriptor: %d\n", fdlocal);
 
     // Clean shared struct buffer
     jvsFrameBuffer.ready = 0;
     jvsFrameBuffer.size = 0;
     memset(jvsFrameBuffer.buffer, 0, JVSBUFFER_SIZE);
 
-    pthread_t reader_thread;
-    int ret = pthread_create(&reader_thread, NULL, readJVSFrameThread, &fd);
+    pthread_t jvsFrameThread;
+    int ret = pthread_create(&jvsFrameThread, NULL, readJVSFrameThread, fd);
     if (ret != 0)
     {
         printf("ERROR Failed to create reader thread");

@@ -90,6 +90,9 @@ int initBaseboard() {
 
         // Set up the serial port settings, so it acts as a JVS interface
         initJVSSerial(jvsFileDescriptor);
+
+        // Start a thread to listen for serial port
+        startJVSFrameThread(&jvsFileDescriptor);
     }
 
     return 0;

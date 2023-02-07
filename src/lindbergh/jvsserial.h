@@ -12,7 +12,7 @@ int getDSR(int fd);
 int getCTS(int fd);
 
 struct jvsFrame readJVSFrameFromThread();
-int startJVSFrameThread(int fd);
+int startJVSFrameThread(int * fd);
 void * readJVSFrameThread(void * arg);
 
 int openJVSSerial(char *jvsPath);
