@@ -137,8 +137,7 @@ void baseboardIoctlRequest(uint32_t *_data) {
             jvsCommand.destSize = _data[4];
             memcpy(inputBuffer, &sharedMemory[jvsCommand.srcAddress], jvsCommand.srcSize);
 
-            printf("JVS DEBUG: Writing ~~~~~~~~~~~~~~~~~~~~~~~~\n");
-            printf("JVS DEBUG: Data as Hex: ");
+            printf("JVS DEBUG: Writing ");
             for (int i = 0; i < jvsCommand.srcSize; i++) {
                 printf("%02X ", (unsigned char) inputBuffer[i]);
             }
@@ -167,7 +166,7 @@ void baseboardIoctlRequest(uint32_t *_data) {
             break;
 
         case BASEBOARD_GET_SENSE_LINE:
-            printf("JVS DEBUG: SEND SEND SEND GetSenseLine\n");
+            printf("JVS DEBUG: GetSenseLine\n");
             break;
 
         default:
@@ -212,19 +211,6 @@ void baseboardIoctlReceive(uint32_t *_data) {
                 _data[3] = outputPacket.length + 3;
                 _data[1] = 1; // Set the status to success
             } else if (jvsFileDescriptor >= 0) {
-                /*
-                // int count = readBytes(jvsFileDescriptor, &sharedMemory[jvsCommand.destAddress], 1024);
-                // int count = readJVSFrameNonBlocking(jvsFileDescriptor, &sharedMemory[jvsCommand.destAddress]);
-                // int count = readJVSFrame(jvsFileDescriptor, &sharedMemory[jvsCommand.destAddress]);
-
-                if (count == -1)
-                    count = 0;
-
-                _data[2] = jvsCommand.destAddress;
-                _data[3] = count;
-                _data[1] = getCTS(jvsFileDescriptor);
-                */
-
                 jvsFrame frame = readJVSFrameFromThread();
                 memcpy(&sharedMemory[jvsCommand.destAddress], frame.buffer, frame.size);
 
@@ -234,7 +220,6 @@ void baseboardIoctlReceive(uint32_t *_data) {
             }
 
             if (_data[3] > 0) {
-                printf("JVS DEBUG: Reading ########################\n");
                 printf("JVS DEBUG: Data extraction: Ready: %d - Address: %d - Length: %d \n", _data[1], _data[2], _data[3]);
                 printf("JVS DEBUG: Hardware Control lines: CTS %02X - DSR %02X - DCD %02X \n", getCTS(jvsFileDescriptor), getDSR(jvsFileDescriptor), getDCD(jvsFileDescriptor));
                 /*
@@ -245,7 +230,7 @@ void baseboardIoctlReceive(uint32_t *_data) {
                 }
                 printf("\n");
                 */
-                printf("JVS DEBUG: Data as Hex: ");
+                printf("JVS DEBUG: Reading ");
                 for (int i = 0; i < _data[3]; i++) {
                     // printf("%02X ", outputBuffer[i]);
                     printf("%02X ", (&sharedMemory[jvsCommand.destAddress])[i]);
