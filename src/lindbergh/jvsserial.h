@@ -19,7 +19,3 @@ int openJVSSerial(char *jvsPath);
 int initJVSSerial(int fd);
 int readJVSFrame(int fd, unsigned char *buffer);
 
-
-int readJVSFrameNonBlocking(int fd, unsigned char *buffer);
-int readJVSFrameFirstTryOfCode(int fd, unsigned char *buffer);
-int readBytes(int fd, unsigned char *buffer, int amount);
