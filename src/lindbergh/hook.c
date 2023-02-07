@@ -494,6 +494,10 @@ int sem_wait(sem_t *sem)
 /**
  * Hook function used by Harley Davidson to change IPs to localhost
  * Currently does nothing.
+ * @param sockfd
+ * @param addr
+ * @param addrlen
+ * @return
  */
 int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
 {
