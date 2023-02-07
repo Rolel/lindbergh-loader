@@ -24,6 +24,7 @@
 #include "rideboard.h"
 #include "securityboard.h"
 #include "patch.h"
+#include "log.h"
 
 #define HOOK_FILE_NAME "/dev/zero"
 
@@ -70,14 +71,14 @@ static void handleSegfault(int signal, siginfo_t *info, void *ptr)
     }
     break;
 
-    case 0xE7: // OUT IMMIDIATE
+    case 0xE7: // OUT IMMEDIATE
     {
         ctx->uc_mcontext.gregs[REG_EIP] += 2;
         return;
     }
     break;
 
-    case 0xE6: // OUT IMMIDIATE
+    case 0xE6: // OUT IMMEDIATE
     {
         ctx->uc_mcontext.gregs[REG_EIP] += 2;
         return;
@@ -102,7 +103,7 @@ static void handleSegfault(int signal, siginfo_t *info, void *ptr)
     break;
 
     default:
-        printf("Warning: Skipping SEGFAULT %X\n", *code);
+        log_warn("Skipping SEGFAULT %X", *code);
         ctx->uc_mcontext.gregs[REG_EIP]++;
         // abort();
     }
@@ -111,6 +112,8 @@ static void handleSegfault(int signal, siginfo_t *info, void *ptr)
 
 void __attribute__((constructor)) hook_init()
 {
+    // "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL"
+    log_set_level(1);
     printf("SEGA Lindbergh Loader\nRobert Dilley 2022\nNot for public consumption\n\n");
 
     // Implement SIGSEGV handler

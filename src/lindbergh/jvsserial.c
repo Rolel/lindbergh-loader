@@ -9,6 +9,7 @@
 #include <pthread.h>   /* POSIX threads API to create and manage threads in the program */
 
 #include "jvsserial.h"
+#include "log.h"
 
 #define TIMEOUT_SELECT 200
 #define CTS_ON_RETRY 20
@@ -29,7 +30,7 @@ int openJVSSerial(char *jvsPath) {
     // TODO: check O_NOCTTY declaration
     jvsFileDescriptor = open(jvsPath, O_RDWR | O_NOCTTY);
     if (jvsFileDescriptor < 0) {
-        printf("Error: Failed to open '%s' for JVS.\n", jvsPath);
+        log_error("Failed to open '%s' for JVS.", jvsPath);
     }
 
     return jvsFileDescriptor;
@@ -47,7 +48,7 @@ int initJVSSerial(int fd) {
 
     //  Get the current options
     if (tcgetattr(fd, &options) != 0) {
-        printf("Error %i from tcgetattr: %s\n", errno, strerror(errno));
+        log_error("Error %i from tcgetattr: %s\n", errno, strerror(errno));
         return 1;
     }
 
@@ -168,19 +169,17 @@ void *readJVSFrameThread(void * arg)
             ctsRetry = CTS_ON_RETRY;
             while (bytesRead < 1 && --ctsRetry > 0 && getCTS(fd) > 0 && jvsFrameBuffer.ready == 0) {
                 bytesRead = read(fd, &localBuffer[byteCount], 1);
-                printf("SERIAL debug: RETRY %d.\n", ctsRetry);
+                log_trace("SERIAL: Retry number %d.\n", ctsRetry);
             }
 
             if (bytesRead > 0) {
                 // Sync byte, we will stick in the loop
                 if (byteCount == 0 && localBuffer[byteCount] == (char) 0xE0) {
-                    // printf("SERIAL thread debug: found SYNC byte.\n");
                     waitForEnd = 1;
                 }
 
                 // Size byte
                 if (byteCount == 2) {
-                    // printf("SERIAL thread debug: found size of %d byte.\n", localBuffer[byteCount]);
                     ackSize = localBuffer[byteCount] + 3;
                 }
 
@@ -192,7 +191,6 @@ void *readJVSFrameThread(void * arg)
                 // Reached the end of the message
                 if (byteCount == ackSize) {
                     waitForEnd = 0;
-                    // printf("SERIAL thread debug: message complete.\n");
                 }
             }
         } while (waitForEnd);
@@ -232,8 +230,7 @@ void *readJVSFrameThread(void * arg)
  */
 int startJVSFrameThread(int * fd) {
     int fdlocal = *((int *) fd);
-    printf("SERIAL thread debug: starting thread.\n");
-    printf("Thread has file descriptor: %d\n", fdlocal);
+    log_trace("SERIAL: starting thread.\n");
 
     // Clean shared JVS frame buffer
     jvsFrameBuffer.ready = 0;
@@ -244,8 +241,7 @@ int startJVSFrameThread(int * fd) {
     int ret = pthread_create(&jvsFrameThread, NULL, readJVSFrameThread, fd);
     if (ret != 0)
     {
-        printf("ERROR Failed to create reader thread");
-        exit(1);
+        log_error("SERIAL: Failed to create reader thread");
         return 1;
     }
 
@@ -312,17 +308,15 @@ int readJVSFrameNonBlocking(int fd, unsigned char *buffer) {
 
         if (bytes_read > 0) {
             // Sync byte, we will stick in the loop
-            if (readJVSFrameNonBlockingByteCount == 0 &&
-                readJVSFrameNonBlockingBuffer[readJVSFrameNonBlockingByteCount] == (char) 0xE0) {
-                printf("SERIAL debug: found SYNC byte.\n");
+            if (readJVSFrameNonBlockingByteCount == 0 && readJVSFrameNonBlockingBuffer[readJVSFrameNonBlockingByteCount] == (char) 0xE0) {
+                log_trace("SERIAL: found SYNC byte.\n");
                 readJVSFrameNonBlockingFrameStarted = 1;
                 readJVSFrameNonBlockingFrameSize = 256;
             }
 
             // Size byte
             if (readJVSFrameNonBlockingByteCount == 2) {
-                printf("SERIAL debug: found size of %d byte.\n",
-                       readJVSFrameNonBlockingBuffer[readJVSFrameNonBlockingByteCount]);
+                log_trace("SERIAL: found size of %d byte.\n", readJVSFrameNonBlockingBuffer[readJVSFrameNonBlockingByteCount]);
                 readJVSFrameNonBlockingFrameSize = readJVSFrameNonBlockingBuffer[readJVSFrameNonBlockingByteCount] + 3;
             }
 
@@ -333,7 +327,7 @@ int readJVSFrameNonBlocking(int fd, unsigned char *buffer) {
 
             // Reached the end of the message
             if (readJVSFrameNonBlockingByteCount == readJVSFrameNonBlockingFrameSize) {
-                printf("SERIAL debug: message complete.\n");
+                log_trace("SERIAL: message complete.\n");
             }
         }
     } while (bytes_read > 0 && readJVSFrameNonBlockingByteCount != readJVSFrameNonBlockingFrameSize);
@@ -343,7 +337,7 @@ int readJVSFrameNonBlocking(int fd, unsigned char *buffer) {
         int returnValue = readJVSFrameNonBlockingFrameSize;
         // Copy data
         memcpy(buffer, readJVSFrameNonBlockingBuffer, readJVSFrameNonBlockingByteCount);
-        printf("SERIAL debug: message returned with %d interleaved calls.\n", readJVSFrameNonBlockingInterleavedCalls);
+        log_trace("SERIAL: message returned with %d interleaved calls.\n", readJVSFrameNonBlockingInterleavedCalls);
 
         // Reset for next frame and return length
         readJVSFrameNonBlockingFrameStarted = 0;
@@ -377,19 +371,18 @@ int readJVSFrame(int fd, unsigned char *buffer) {
         if (bytes_read != 1 && getCTS(fd) > 0) {
             usleep(1000);
             bytes_read = read(fd, &tmpBuffer[byteCount], 1);
-            // printf("SERIAL debug: RETRY.\n");
         }
 
         if (bytes_read > 0) {
             // Sync byte, we will stick in the loop
             if (byteCount == 0 && tmpBuffer[byteCount] == (char) 0xE0) {
-                printf("SERIAL debug: found SYNC byte.\n");
+                log_trace("SERIAL: found SYNC byte.\n");
                 waitForEnd = 1;
             }
 
             // Size byte
             if (byteCount == 2) {
-                printf("SERIAL debug: found size of %d byte.\n", tmpBuffer[byteCount]);
+                log_trace("SERIAL: found size of %d byte.\n", tmpBuffer[byteCount]);
                 ackSize = tmpBuffer[byteCount] + 3;
             }
 
@@ -401,7 +394,7 @@ int readJVSFrame(int fd, unsigned char *buffer) {
             // Reached the end of the message
             if (byteCount == ackSize) {
                 waitForEnd = 0;
-                printf("SERIAL debug: message complete.\n");
+                log_trace("SERIAL: message complete.\n");
             }
         }
     } while (waitForEnd);
@@ -440,7 +433,7 @@ int readJVSFrameFirstTryOfCode(int fd, unsigned char *buffer) {
     // Wait for data to be available to be read on the file descriptor
     int filesReadyToRead = select(fd + 1, &fd_serial, NULL, NULL, &tv);
     if (filesReadyToRead > 0 && FD_ISSET(fd, &fd_serial)) {
-        printf("SERIAL debug: something to read.\n");
+        log_trace("SERIAL: something to read.\n");
         // There is at least one byte to read
         int bytes_read = 0, ackSize = 0;
         char tmpBuffer[1024];
@@ -450,13 +443,13 @@ int readJVSFrameFirstTryOfCode(int fd, unsigned char *buffer) {
             if (bytes_read > 0) {
                 // Sync byte, we will stick in the loop
                 if (byteCount == 0 && tmpBuffer[byteCount] == (char) 0xE0) {
-                    printf("SERIAL debug: found SYNC byte.\n");
+                    log_trace("SERIAL: found SYNC byte.\n");
                     waitForEnd = 1;
                 }
 
                 // Size byte
                 if (byteCount == 2) {
-                    printf("SERIAL debug: found size of %d byte.\n", tmpBuffer[byteCount]);
+                    log_trace("SERIAL: found size of %d byte.\n", tmpBuffer[byteCount]);
                     ackSize = tmpBuffer[byteCount] + 3;
                 }
 
@@ -468,7 +461,7 @@ int readJVSFrameFirstTryOfCode(int fd, unsigned char *buffer) {
                 // Reached the end of the message
                 if (byteCount == ackSize) {
                     waitForEnd = 0;
-                    printf("SERIAL debug: message complete.\n");
+                    log_trace("SERIAL debug: message complete.\n");
                 }
             }
         } while (waitForEnd);
@@ -500,11 +493,10 @@ int readBytes(int fd, unsigned char *buffer, int amount) {
     if (filesReadyToRead > 0 && FD_ISSET(fd, &fd_serial) && getCTS(fd) != 0) {
         int bytes_read = read(fd, buffer, amount);
         if (bytes_read > 0) {
-            printf("SERIAL debug: %d bytes from serial.\n", bytes_read);
+            log_trace("SERIAL: %d bytes from serial.\n", bytes_read);
             return bytes_read;
         }
     }
 
-    // printf("SERIAL debug: nothing to read.\n");
     return 0;
 }

@@ -5,6 +5,7 @@
 #include <errno.h>   /* Error number definitions */
 #include <stdlib.h>  /* Standard library functions like malloc, free, exit, and atoi */
 
+#include "log.h"
 #include "baseboard.h"
 #include "config.h"
 #include "jvs.h"
@@ -121,7 +122,7 @@ void baseboardIoctlRequest(uint32_t *_data) {
 
         case BASEBOARD_WRITE_FLASH: // bcCmdSysFlashWrite
         {
-            printf("Warning: The game attempted to write to the baseboard flash\n");
+            log_warn("The game attempted to write to the baseboard flash.");
         }
             break;
 
@@ -132,11 +133,12 @@ void baseboardIoctlRequest(uint32_t *_data) {
             jvsCommand.destSize = _data[4];
             memcpy(inputBuffer, &sharedMemory[jvsCommand.srcAddress], jvsCommand.srcSize);
 
-            printf("JVS DEBUG: Writing ");
+            char hex_string[(jvsCommand.srcSize * 3) + 1];
+            int hex_string_len = 0;
             for (int i = 0; i < jvsCommand.srcSize; i++) {
-                printf("%02X ", (unsigned char) inputBuffer[i]);
+                hex_string_len  += sprintf(hex_string+hex_string_len, "%02X ", (&sharedMemory[jvsCommand.destAddress])[i]);
             }
-            printf("\n");
+            log_trace("JVS: Writing %s", hex_string);
 
             if (getConfig()->emulateJVS) {
                 processPacket();
@@ -145,27 +147,27 @@ void baseboardIoctlRequest(uint32_t *_data) {
                 for (int i = 0; i < jvsCommand.srcSize; i++) {
                     write(jvsFileDescriptor, &inputBuffer[i], 1);
                     if (inputBuffer[i] == 0xF0) {
-                        printf("JVS DEBUG: got 0xF0 (Reset), soft senseLine is set to 3.\n");
+                        log_trace("JVS: got 0xF0 (Reset), soft senseLine is set to 3.");
                         setSenseLine(3);
                     }
 
                     if (inputBuffer[i] == 0xF1) {
-                        printf("JVS DEBUG: got 0xF1 (Set Address), soft senseLine is set to 1.\n");
+                        log_trace("JVS: got 0xF1 (Set Address), soft senseLine is set to 1.");
                         setSenseLine(1);
                     }
                 }
 
-                printf("JVS DEBUG: Hardware Control lines: CTS %02X - DSR %02X - DCD %02X \n", getCTS(jvsFileDescriptor), getDSR(jvsFileDescriptor), getDCD(jvsFileDescriptor));
+                log_trace("JVS: Hardware Control lines: CTS %02X - DSR %02X - DCD %02X", getCTS(jvsFileDescriptor), getDSR(jvsFileDescriptor), getDCD(jvsFileDescriptor));
             }
         }
             break;
 
         case BASEBOARD_GET_SENSE_LINE:
-            printf("JVS DEBUG: GetSenseLine\n");
+            log_trace("JVS DEBUG: GetSenseLine");
             break;
 
         default:
-            printf("Error: Unknown baseboard command %X\n", _data[0]);
+            log_error("Unknown baseboard command %X", _data[0]);
     }
 
     // Acknowledge the command
@@ -195,7 +197,7 @@ void baseboardIoctlReceive(uint32_t *_data) {
                 _data[2] = (getDSR(jvsFileDescriptor) == 1) ? 1 : 3;
                 _data[1] = getCTS(jvsFileDescriptor);
             }
-            printf("JVS DEBUG: GetSenseLine: %02X - %02X \n", _data[2], _data[1]);
+            log_trace("JVS: GetSenseLine: %02X - %02X", _data[2], _data[1]);
         }
             break;
 
@@ -215,33 +217,26 @@ void baseboardIoctlReceive(uint32_t *_data) {
             }
 
             if (_data[3] > 0) {
-                printf("JVS DEBUG: Data extraction: Ready: %d - Address: %d - Length: %d \n", _data[1], _data[2], _data[3]);
-                printf("JVS DEBUG: Hardware Control lines: CTS %02X - DSR %02X - DCD %02X \n", getCTS(jvsFileDescriptor), getDSR(jvsFileDescriptor), getDCD(jvsFileDescriptor));
-                /*
-                printf("JVS DEBUG: Data as String: "); // Does not use native printf because data contains null bytes
+                log_trace("JVS: Data extraction: Ready: %d - Address: %d - Length: %d", _data[1], _data[2], _data[3]);
+                log_trace("JVS: Hardware Control lines: CTS %02X - DSR %02X - DCD %02X", getCTS(jvsFileDescriptor), getDSR(jvsFileDescriptor), getDCD(jvsFileDescriptor));
+                char hex_string[(_data[3] * 3) + 1];
+                int hex_string_len = 0;
                 for (int i = 0; i < _data[3]; i++) {
-                    // printf("%02X ", outputBuffer[i]);
-                    printf("%c", (&sharedMemory[jvsCommand.destAddress])[i]);
+                    hex_string_len  += sprintf(hex_string+hex_string_len, "%02X ", (&sharedMemory[jvsCommand.destAddress])[i]);
                 }
-                printf("\n");
-                */
-                printf("JVS DEBUG: Reading ");
-                for (int i = 0; i < _data[3]; i++) {
-                    // printf("%02X ", outputBuffer[i]);
-                    printf("%02X ", (&sharedMemory[jvsCommand.destAddress])[i]);
-                }
-                printf("\n");
+                log_trace("JVS: Reading %s", hex_string);
             }
         }
             break;
 
         default:
-            printf("Error: Unknown baseboard receive command %X\n", _data[0] & 0xFFF);
+            log_error("Unknown baseboard receive command %X", _data[0] & 0xFFF);
     }
 
     // Acknowledge the command
     _data[0] |= 0xF0000000;
 }
+
 
 int baseboardIoctl(int fd, unsigned int request, void *data) {
     switch (request) {
@@ -305,7 +300,7 @@ int baseboardIoctl(int fd, unsigned int request, void *data) {
             break;
 
         default:
-            printf("Error: Unknown baseboard ioctl %X\n", request);
+            log_error("Unknown baseboard ioctl %X", request);
     }
 
     return 0;
