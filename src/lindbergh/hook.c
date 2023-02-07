@@ -42,16 +42,24 @@ int fileRead[2] = {0, 0};
 
 uint16_t basePortAddress = 0xFFFF;
 
+/**
+ * Signal handler for the SIGSEGV signal, which is triggered when a process tries to access an illegal memory location.
+ * @param signal
+ * @param info
+ * @param ptr
+ */
 static void handleSegfault(int signal, siginfo_t *info, void *ptr)
 {
     ucontext_t *ctx = ptr;
 
+    // Get the address of the instruction causing the segfault
     uint8_t *code = (uint8_t *)ctx->uc_mcontext.gregs[REG_EIP];
 
     switch (*code)
     {
     case 0xED:
     {
+        // Get the port number from the EDX register
         uint16_t port = ctx->uc_mcontext.gregs[REG_EDX] & 0xFFFF;
 
         // The first port called is usually random, but everything after that
@@ -61,9 +69,11 @@ static void handleSegfault(int signal, siginfo_t *info, void *ptr)
         if (basePortAddress == 0xFFFF)
             basePortAddress = port;
 
+        // Adjust the port number if necessary
         if (port > 0x38)
             port = port - basePortAddress;
 
+        // Call the security board input function with the port number and data
         securityBoardIn(port, (uint32_t *)&(ctx->uc_mcontext.gregs[REG_EAX]));
 
         ctx->uc_mcontext.gregs[REG_EIP]++;
@@ -73,6 +83,7 @@ static void handleSegfault(int signal, siginfo_t *info, void *ptr)
 
     case 0xE7: // OUT IMMEDIATE
     {
+        // Increment the instruction pointer by two to skip over this instruction
         ctx->uc_mcontext.gregs[REG_EIP] += 2;
         return;
     }
@@ -80,6 +91,7 @@ static void handleSegfault(int signal, siginfo_t *info, void *ptr)
 
     case 0xE6: // OUT IMMEDIATE
     {
+        // Increment the instruction pointer by two to skip over this instruction
         ctx->uc_mcontext.gregs[REG_EIP] += 2;
         return;
     }
@@ -153,7 +165,7 @@ void __attribute__((constructor)) hook_init()
 
     securityBoardSetDipResolution(getConfig()->width, getConfig()->height);
 
-    printf("Loader init success\n");
+    log_info("Loader init success");
 }
 
 int open(const char *pathname, int flags)
@@ -165,14 +177,14 @@ int open(const char *pathname, int flags)
     if (strcmp(pathname, "/dev/lbb") == 0)
     {
         hooks[BASEBOARD] = _open(HOOK_FILE_NAME, flags);
-        printf("Baseboard opened %d\n", hooks[BASEBOARD]);
+        log_info("Baseboard opened %d", hooks[BASEBOARD]);
         return hooks[BASEBOARD];
     }
 
     if (strcmp(pathname, "/dev/i2c/0") == 0)
     {
         hooks[EEPROM] = _open(HOOK_FILE_NAME, flags);
-        printf("EEPROM opened %d\n", hooks[EEPROM]);
+        log_info("EEPROM opened %d", hooks[EEPROM]);
         return hooks[EEPROM];
     }
 
@@ -182,7 +194,7 @@ int open(const char *pathname, int flags)
             return -1;
 
         hooks[SERIAL0] = _open(HOOK_FILE_NAME, flags);
-        printf("SERIAL0 Opened %d\n", hooks[SERIAL0]);
+        log_info("SERIAL0 Opened %d", hooks[SERIAL0]);
         return hooks[SERIAL0];
     }
 
@@ -192,7 +204,7 @@ int open(const char *pathname, int flags)
             return -1;
 
         hooks[SERIAL1] = _open(HOOK_FILE_NAME, flags);
-        printf("SERIAL1 opened %d\n", hooks[SERIAL1]);
+        log_info("SERIAL1 opened %d", hooks[SERIAL1]);
         return hooks[SERIAL1];
     }
 
@@ -218,7 +230,6 @@ int sem_wait(sem_t *sem)
 FILE *fopen(const char *restrict pathname, const char *restrict mode)
 {
     FILE *(*_fopen)(const char *restrict pathname, const char *restrict mode) = dlsym(RTLD_NEXT, "fopen");
-    // printf("fopen %s\n", pathname);
 
     if (strcmp(pathname, "/root/lindbergrc") == 0)
     {
@@ -493,7 +504,7 @@ int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
     // Change the IP to connect to to 127.0.0.1
     // in_pointer->sin_addr.s_addr = inet_addr("127.0.0.1");
     char *some_addr = inet_ntoa(in_pointer->sin_addr);
-    printf("Connecting to %s\n", some_addr);
+    log_info("Connecting to %s", some_addr);
 
     return _connect(sockfd, addr, addrlen);
 }
