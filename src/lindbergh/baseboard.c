@@ -67,7 +67,7 @@ int initBaseboard() {
     sram = fopen(sramPath, "a");
     // Create file if it doesn't exist
     if (sram == NULL) {
-        printf("Error: Cannot open %s\n", sramPath);
+        log_error("Cannot open %s", sramPath);
         return 1;
     }
     fclose(sram);
@@ -80,7 +80,7 @@ int initBaseboard() {
     if (getConfig()->emulateJVS == 0 && strcmp(getConfig()->jvsPath, "none") != 0) {
         jvsFileDescriptor = openJVSSerial(getConfig()->jvsPath);
         if (jvsFileDescriptor < 0) {
-            printf("Error: Failed to open '%s' for JVS\n", getConfig()->jvsPath);
+            log_error("Failed to open '%s' for JVS", getConfig()->jvsPath);
             exit(1);
         }
 
