@@ -120,7 +120,7 @@ void createDefaultIni(const char *filePath)
     fprintf(file, "# Hacky way to make MJ4 and AxA work at prohibited times\nMJ4_ENABLED_ALL_THE_TIME = %s\n\n",
             defaults.mj4EnabledAtT ? "true" : "false");
     fprintf(file, "# House of the dead 4 speed fix, set the frequency of your CPU in Ghz\nCPU_FREQ_GHZ = %.1f\n\n", defaults.cpuFreqGhz);
-    fprintf(file, "# Set to true if you want to chnge the way the guns are show in Rambo\n");
+    fprintf(file, "# Set to true if you want to change the way the guns are show in Rambo\n");
     fprintf(file, "RAMBO_GUNS_SWITCH = false\n\n");
     fprintf(file, "# Set to true to set the language in Chinese for ID5 DVP-0084 and DVP-0084A\n");
     fprintf(file, "ID5_CHINESE_LANGUAGE = %s\n\n", defaults.id5ChineseLanguage ? "true" : "false");
