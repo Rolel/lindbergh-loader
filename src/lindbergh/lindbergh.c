@@ -345,7 +345,8 @@ void setEnvironmentVariables(const char *ldLibPath, const char *originalDir, con
         snprintf(newLdLibPath, sizeof(newLdLibPath), "%s", currentLibraryPath);
     }
 
-    char *tmpLibPath = dirname(strdup(ldLibPath));
+    char *ldLibPathCopy = strdup(ldLibPath);
+    char *tmpLibPath = dirname(ldLibPathCopy);
     if (strcmp(tmpLibPath, ".") != 0)
     {
         strcat(newLdLibPath, ":");
@@ -363,6 +364,8 @@ void setEnvironmentVariables(const char *ldLibPath, const char *originalDir, con
         strcat(newLdLibPath, ":");
         strcat(newLdLibPath, gameDir);
     }
+    
+    free(ldLibPathCopy);
 
     strcat(newLdLibPath, ":.:lib:../lib");
 
@@ -869,6 +872,7 @@ int main(int argc, char *argv[])
     if (strcmp(libPath, "") == 0)
     {
         log_error("Error: %s not found in known locations.\n", PRELOAD_FILE_NAME);
+        free(libPath);
         return 1;
     }
 
@@ -902,6 +906,9 @@ int main(int argc, char *argv[])
 
     setEnvironmentVariables(libPath, originalDir, targetedGameDir, zink, nvidia, extConfigPath, extControlsPath, extControlsDbPath,
                             libOpenal);
+
+    free(libPath);
+    if (libOpenal) free(libOpenal);
 
     if (gdb)
     {

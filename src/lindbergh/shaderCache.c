@@ -799,6 +799,10 @@ void cacheModedShaderFiles()
             memcpy((void *)shaderFilesToPatch[x].shaderBuffer, buff, patchedFile.fsize);
             free(buff);
         }
+
+        xdl_free_mmfile(&oriFile);
+        xdl_free_mmfile(&patch);
+        xdl_free_mmfile(&patchedFile);
     }
 
     if (getConfig()->showDebugMessages)

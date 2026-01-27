@@ -5,6 +5,7 @@
 #include <SDL3/SDL_video.h>
 #include <fcntl.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <unistd.h>
 
 #include "config.h"
@@ -67,6 +68,8 @@ static void (*idDisplayTextureOri)(void *, void *, int, int, int);
 static void (*idDrawBallonOri)(void *, void *, float, float, float, float, float, bool) = NULL;
 
 float newHeightLGJ, newWidth2LGJ, newWidthHLGJ, newWidthSLGJ;
+
+extern int textureIdIdxAdjust;
 
 bool myEnableScaling = false;
 
@@ -188,6 +191,15 @@ void glViewport(GLint x, GLint y, GLsizei width, GLsizei height)
                 height = gHeight;
             }
         }
+        // Patches the Resolution even tho is not needed to fix patched ELFs.
+        else if (gWidth == 800 && gHeight == 480)
+        {
+            if (width == 1280 && height == 768)
+            {
+                width = 800;
+                height = 480;
+            }
+        }
     }
     else if (gId == SEGA_RACE_TV)
     {
@@ -284,15 +296,24 @@ void glTexImage2D(unsigned int target, int level, int internalformat, int width,
     void (*_glTexImage2D)(unsigned int target, int level, int internalformat, int width, int height, int border, unsigned int format,
                           unsigned int type, const void *pixels) = dlsym(RTLD_NEXT, "glTexImage2D");
 
-    if (gWidth != 800 || gHeight != 480)
+    if (gGrp == GROUP_OUTRUN)
     {
-        if (gGrp == GROUP_OUTRUN)
+        if (gWidth != 800 || gHeight != 480)
         {
             void *addr = __builtin_return_address(0);
             if ((width >= 800) && (width != 1024) && (addr != (void *)0x80d78d5) && (addr != (void *)0x080d7941))
             {
                 width = gWidth;
                 height = gHeight;
+            }
+        }
+        // Patches the Resolution even tho is not needed to fix patched ELFs.
+        else if (gWidth == 800 && gHeight == 480)
+        {
+            if (width == 1280 && height == 768)
+            {
+                width = 800;
+                height = 480;
             }
         }
     }
@@ -347,7 +368,9 @@ void myGlBindTexture(GLenum target, GLuint texture)
 {
     curTarget = target;
     curTextureID = texture;
-    curTextureID--;
+    curTextureID--; // We adjust for the added blitting texture
+
+    curTextureID -= textureIdIdxAdjust; // We also adjust for the crosshair textures.
 
     void (*_glBindTexture)(GLenum, GLuint) = dlsym(RTLD_NEXT, "glBindTexture");
     _glBindTexture(target, texture);
@@ -1127,7 +1150,7 @@ void glVertex3fHOD4(GLfloat x, GLfloat y, GLfloat z)
     else if (z == -1.510000f)
     { // logo  2d elemtents target
 
-        if (curTextureID != 260) // target boss fight // Added 2 because of the crosshairs.
+        if (curTextureID != 260) // target boss fight
         {
             x += OffsetX;
             y -= OffsetY;
@@ -1278,6 +1301,77 @@ void glVertex3f2SP(GLfloat x, GLfloat y, GLfloat z)
 
     if (z == -1.000000f)
     { // 3d
+      // printf("All x values: %.10f\n", x);
+      // printf("All y values: %.10f\n", y);
+    }
+
+    else if (z == -1.3099999428f)
+    {
+
+        if ((x == 0.1838379353f && y == -0.0376717076f) || (x == -0.1838379353f && y == 0.0376717076f) ||
+            (x == 0.1838379353f && y == 0.0376717076f) || (x == -0.1838379353f && y == -0.0376717076f) ||
+            (x == -0.1819543540f && y == -0.0380484276f) || (x == 0.1819543540f && y == -0.0380484276f) ||
+            (x == 0.1819543540f && y == -0.1126384139f) || (x == -0.1819543540f && y == -0.1126384139f))
+        {
+            // if (curTextureID == 499 || curTextureID == 500){ //500 reload - 499 hide and reload
+            x *= scaleX;
+            y *= scaleY;
+        }
+        else
+        {
+            x += AdjOffsetX;
+            y -= AdjOffsetY;
+            x *= scaleX;
+            y *= scaleY;
+        }
+    }
+
+    else if (z == -1.5099999905f)
+    {
+
+        if ((curTextureID >= 479 && curTextureID < 489) || curTextureID == 504 || curTextureID == 505 || curTextureID == 506)
+        { // Enemy portraits in the HUD
+            if (x < 0.0f)
+            {
+                x += AdjOffsetX;
+                y -= AdjOffsetY;
+                x *= scaleX;
+                y *= scaleY;
+            }
+            else
+            {
+                x -= OffsetX;
+                y -= OffsetY;
+                x *= scaleX;
+                y *= scaleY;
+            }
+        }
+        else if (curTextureID == 497) // right
+        {
+            x -= OffsetX;
+            y -= OffsetY;
+            x *= scaleX;
+            y *= scaleY;
+        }
+        else if (curTextureID == 498)
+        { // deadend
+        }
+        else
+        {
+            x += AdjOffsetX;
+            y -= AdjOffsetY;
+            x *= scaleX;
+            y *= scaleY;
+        }
+    }
+
+    else if (z == -1.2100000381f)
+    {
+
+        x += AdjOffsetX;
+        y -= AdjOffsetY;
+        x *= scaleX;
+        y *= scaleY;
     }
     else if (z == -3.000000f)
     { // videos
@@ -1291,7 +1385,7 @@ void glVertex3f2SP(GLfloat x, GLfloat y, GLfloat z)
         y *= scaleY;
     }
     else if (z == -1.510000f)
-    { // logo - coin/start - 2D
+    {                            // logo - coin/start - 2D
         if (curTextureID == 497) // right
         {
             x -= OffsetX;
@@ -2485,24 +2579,11 @@ int initResolutionPatches()
         break;
         case OUTRUN_2_SP_SDX_REVA:
         {
-            if (gWidth <= 800 && gHeight <= 480)
-                break;
-            // If resolution is not the native of the game this patch kind of fix the Sun when the LensGlare effect is
-            // shown.
-            if ((gWidth > 800) && (gHeight > 480))
-            {
-                patchMemoryFromString(0x080e8e06, "9090909090"); // removes a call to a light function
-                patchMemoryFromString(0x080e8e17, "9090909090"); // removes a call to a light function
-                if (!getConfig()->outrunLensGlareEnabled)
-                {
-                    detourFunction(0x080e8ac8, stubReturn); // Completely disables the lens glare effect
-                }
-            }
             setVariable(0x080b913a, 0x44200000);
             setVariable(0x081dada8, 0x44200000);
             setVariable(0x081dadb0, 0x44200000);
 
-            // Clean patched elf floating around
+            // Fixes patched ELFs
             patchMemoryFromString(0x080b912e, "f043");
             patchMemoryFromString(0x080f39de, "c0ef43");
             patchMemoryFromString(0x080f3aa6, "2048");
@@ -2518,6 +2599,20 @@ int initResolutionPatches()
             setVariable(0x081dadbc, 0x43f00000);
             patchMemoryFromString(0x081e7b3e, "7e");
             patchMemoryFromString(0x081e7b46, "89");
+
+            if (gWidth <= 800 && gHeight <= 480)
+                break;
+            // If resolution is not the native of the game this patch kind of fix the Sun when the LensGlare effect is
+            // shown.
+            if ((gWidth > 800) && (gHeight > 480))
+            {
+                patchMemoryFromString(0x080e8e06, "9090909090"); // removes a call to a light function
+                patchMemoryFromString(0x080e8e17, "9090909090"); // removes a call to a light function
+                if (!getConfig()->outrunLensGlareEnabled)
+                {
+                    detourFunction(0x080e8ac8, stubReturn); // Completely disables the lens glare effect
+                }
+            }
         }
         break;
         case OUTRUN_2_SP_SDX_REVA_TEST:
@@ -2571,6 +2666,7 @@ int initResolutionPatches()
             {
                 case 0:
                 {
+                    if (sdlDisplayId) SDL_free(sdlDisplayId);
                     return 0;
                 }
                 case 1: // No touch screen
@@ -2629,17 +2725,16 @@ int initResolutionPatches()
                 }
                 break;
             }
-            setVariable(0x0805b104, phX);              // X 1st screen
-            setVariable(0x0805b0fd, phY);              // Y 1st screen
-            setVariable(0x0805b0f5, phW);              // Width 1st screen
-            setVariable(0x0805b0ed, phH);              // Height 1st screen
-            setVariable(0x0805afa2, phX2);             // X 2nd screen
-            setVariable(0x0805af9b, phY2);             // Y 2st screen
-            setVariable(0x0805af93, phW2);             // Width 2nd screen
-            setVariable(0x0805af8b, phH2);             // Height 2nd screen
+            setVariable(0x0805b104, phX);  // X 1st screen
+            setVariable(0x0805b0fd, phY);  // Y 1st screen
+            setVariable(0x0805b0f5, phW);  // Width 1st screen
+            setVariable(0x0805b0ed, phH);  // Height 1st screen
+            setVariable(0x0805afa2, phX2); // X 2nd screen
+            setVariable(0x0805af9b, phY2); // Y 2st screen
+            setVariable(0x0805af93, phW2); // Width 2nd screen
+            setVariable(0x0805af8b, phH2); // Height 2nd screen
             // patchMemoryFromString(0x08052cc4, "0000"); // swap screens
             detourFunction(0x0804c628, glClearColorPH);
-            
 
             // Test Menu
             if (isTestMode())
@@ -2756,6 +2851,7 @@ int initResolutionPatches()
             {
                 if (getConfig()->boostRenderRes)
                     setVariable(0x084c9dbc, 1280);
+                if (sdlDisplayId) SDL_free(sdlDisplayId);
                 return 0;
             }
             else if (gWidth == 640 && gHeight == 480)
@@ -2785,6 +2881,7 @@ int initResolutionPatches()
             {
                 if (getConfig()->boostRenderRes)
                     setVariable(0x084c3a9c, 1280);
+                if (sdlDisplayId) SDL_free(sdlDisplayId);
                 return 0;
             }
             else if (gWidth == 640 && gHeight == 480)
@@ -2814,6 +2911,7 @@ int initResolutionPatches()
             {
                 if (getConfig()->boostRenderRes)
                     setVariable(0x084c3a9c, 1280);
+                if (sdlDisplayId) SDL_free(sdlDisplayId);
                 return 0;
             }
             else if (gWidth == 640 && gHeight == 480)
@@ -2927,8 +3025,10 @@ int initResolutionPatches()
         break;
         case VIRTUA_FIGHTER_5:
         {
-            if ((gWidth == 640 && gHeight == 480) || (gWidth == 1280 && gHeight == 768))
+            if ((gWidth == 640 && gHeight == 480) || (gWidth == 1280 && gHeight == 768)) {
+                if (sdlDisplayId) SDL_free(sdlDisplayId);
                 return 0;
+            }
             patchMemoryFromString(0x08054057, "b80a000000"); // Skips resolution set by the Dip Switches.
             setVariable(0x0847cf58, gWidth);
             setVariable(0x0847cf5c, gHeight);
@@ -3152,5 +3252,7 @@ int initResolutionPatches()
         default:
             break;
     }
+    if (sdlDisplayId)
+        SDL_free(sdlDisplayId);
     return 0;
 }

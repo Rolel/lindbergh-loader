@@ -134,7 +134,7 @@ jobs:
           
           # Use jq to build the JSON payload and pipe it to curl
           jq -n \
-            --arg content "New lindbergh loader development build **v${{ needs.prepare-source.outputs.release_version }}** has been released!" \
+            --arg content "New lindbergh loader build **v${{ needs.prepare-source.outputs.release_version }}** has been released!" \
             --arg changelog "$CHANGELOG_BODY" \
             --arg flatpak_url "$FLATPAK_URL" \
             --arg appimage_url "$APPIMAGE_URL" \

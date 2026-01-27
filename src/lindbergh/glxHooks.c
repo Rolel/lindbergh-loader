@@ -13,6 +13,7 @@
 #include "blitStretching.h"
 #include "border.h"
 #include "config.h"
+#include "crossHair.h"
 #include "flowControl.h"
 #include "fpsLimiter.h"
 #include "sdlCalls.h"
@@ -30,6 +31,8 @@ double localFps = 0.0;
 bool createContextCalled = false;
 int ctxCnt = 0;
 
+extern char windowTitle[512];
+
 void glXSwapBuffers(Display *dpy, GLXDrawable drawable)
 {
     void (*_glXSwapBuffers)(Display *dpy, GLXDrawable drawable) = dlsym(RTLD_NEXT, "glXSwapBuffers");
@@ -38,6 +41,9 @@ void glXSwapBuffers(Display *dpy, GLXDrawable drawable)
 
     if (config->borderEnabled)
         drawGameBorder(config->width, config->height, config->whiteBorderPercentage, config->blackBorderPercentage);
+
+    if (p1CrossHairInitialized || p2CrossHairInitialized)
+        renderCrosshairs();
 
     blitStretch();
 
@@ -48,10 +54,12 @@ void glXSwapBuffers(Display *dpy, GLXDrawable drawable)
     if (config->fpsLimiter)
         frameTiming();
 
-    char windowTitle[512];
     localFps = calculateFps();
     sprintf(windowTitle, "%s - FPS: %.2f", sdlGameTitle, localFps);
     SDL_SetWindowTitle(sdlWindow, windowTitle);
+
+    if (gId == QUIZ_AXA || gId == QUIZ_AXA_LIVE)
+        mj4TouchHolding();
 }
 
 GLXContext glXCreateContext(Display *dpy, XVisualInfo *vis, GLXContext shareList, Bool direct)
@@ -81,7 +89,8 @@ GLXFBConfig *glXChooseFBConfig(Display *dpy, int screen, const int *attrib_list,
     if (__NV_PRIME_RENDER_OFFLOAD == NULL)
         __NV_PRIME_RENDER_OFFLOAD = " ";
 
-    if (gGrp == GROUP_HOD4 || gGrp == GROUP_HOD4_SP || gId == THE_HOUSE_OF_THE_DEAD_EX || gId == TOO_SPICY || gId == QUIZ_AXA || gId == QUIZ_AXA_LIVE)
+    if (gGrp == GROUP_HOD4 || gGrp == GROUP_HOD4_SP || gId == THE_HOUSE_OF_THE_DEAD_EX || gId == TOO_SPICY || gId == QUIZ_AXA ||
+        gId == QUIZ_AXA_LIVE)
     {
         if (strcmp(__GLX_VENDOR_LIBRARY_NAME, "nvidia") == 0 && strcmp(__NV_PRIME_RENDER_OFFLOAD, "1") == 0)
         {
@@ -112,7 +121,6 @@ void glXDestroyGLXPbufferSGIX(Display *dpy, GLXPbufferSGIX pbuf)
 
 GLXFBConfigSGIX *glXChooseFBConfigSGIX(Display *dpy, int screen, int *attrib_list, int *nelements)
 {
-    int gId = getConfig()->crc32;
     char *__GLX_VENDOR_LIBRARY_NAME = getenv("__GLX_VENDOR_LIBRARY_NAME");
     char *__NV_PRIME_RENDER_OFFLOAD = getenv("__NV_PRIME_RENDER_OFFLOAD");
     if (__GLX_VENDOR_LIBRARY_NAME == NULL)

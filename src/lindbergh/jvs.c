@@ -488,7 +488,7 @@ JVSStatus processPacket(int *packetSize)
             ////printf("CMD_CONVEY_ID\n");
             size = 1;
             outputPacket.data[outputPacket.length++] = REPORT_SUCCESS;
-            char idData[100];
+            char idData[100] = {0};
             for (int i = 1; i < 100; i++)
             {
                 idData[i] = (char)inputPacket.data[index + i];

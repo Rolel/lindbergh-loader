@@ -9,12 +9,14 @@
 #include <dirent.h>
 #include <dlfcn.h>
 #include <fcntl.h>
+#include <linux/input-event-codes.h>
 #include <linux/input.h>
 #include <unistd.h>
 #include <math.h>
 
 #include "evdevInput.h"
 #include "config.h"
+#include "crossHair.h"
 #include "jvs.h"
 #include "log.h"
 
@@ -843,13 +845,138 @@ void normaliseName(char *string)
     }
 }
 
+typedef struct
+{
+    int fd;
+    struct ff_effect effect;
+} FFBThreadData;
+
+void *ffbEffectThread(void *arg)
+{
+    FFBThreadData *data = (FFBThreadData *)arg;
+    int fd = data->fd;
+    struct ff_effect effect = data->effect;
+
+    // Trigger the effect
+    struct input_event ffb_event;
+    ffb_event.type = EV_FF;
+    ffb_event.code = effect.id;
+    ffb_event.value = 1;
+
+    if (write(fd, &ffb_event, sizeof(ffb_event)) == -1)
+    {
+        perror("Failed to trigger FFB effect");
+    }
+    else
+    {
+        printf("FFB effect triggered with ID %d\n", effect.id);
+
+        usleep(effect.replay.length * 1000);
+    }
+
+    // Erase FFB effect
+    if (ioctl(fd, EVIOCRMFF, effect.id) == -1)
+    {
+        perror("Failed to erase FFB effect");
+    }
+    else
+    {
+        printf("FFB effect with ID %d erased\n", effect.id);
+    }
+
+    close(fd);
+    free(data);
+    return NULL;
+}
+
+void initFFB(Controller *controller, uint16_t weak_magnitude, uint16_t strong_magnitude, uint16_t length)
+{
+    if (!controller->hasFFB)
+    {
+        printf("Controller does not support FFB.\n");
+        return;
+    }
+
+    int fd = open(controller->path, O_RDWR);
+    if (fd < 0)
+    {
+        perror("Failed to open FFB device");
+        return;
+    }
+
+    struct ff_effect effect;
+    memset(&effect, 0, sizeof(effect));
+
+    // // Configure the FFB effect
+    // effect.type = FF_RUMBLE;
+    // effect.id = -1; // Let the system assign an ID
+    // effect.u.rumble.weak_magnitude = weak_magnitude;
+    // effect.u.rumble.strong_magnitude = strong_magnitude;
+    // effect.replay.length = length; // Duration
+    // effect.replay.delay = 0;
+
+    // Configure as periodic
+    effect.type = FF_PERIODIC;
+    effect.id = -1;                       // Let the system assign an ID
+    effect.u.periodic.waveform = FF_SINE; //  FF_SINE/FF_SQUARE/FF_TRIANGLE
+    effect.u.periodic.magnitude = 0x100;  //  magnitude
+    effect.u.periodic.offset = 0;
+    effect.u.periodic.phase = 0;
+    effect.u.periodic.period = 100;                 // period between bumps
+    effect.u.periodic.envelope.attack_length = 100; //  attack
+    effect.u.periodic.envelope.attack_level = 0;
+    effect.u.periodic.envelope.fade_length = 100; //  fade
+    effect.u.periodic.envelope.fade_level = 0;
+    effect.replay.length = 500; //  duration
+    effect.replay.delay = 0;    // No delay
+
+    // Upload the effect
+    if (ioctl(fd, EVIOCSFF, &effect) == -1)
+    {
+        perror("Failed to upload FFB effect");
+        close(fd);
+        return;
+    }
+
+    printf("FFB effect initialized with ID %d\n", effect.id);
+
+    // Prepare thread data
+    FFBThreadData *threadData = malloc(sizeof(FFBThreadData));
+    if (!threadData)
+    {
+        perror("Failed to allocate thread data");
+        close(fd);
+        return;
+    }
+    threadData->fd = fd;
+    threadData->effect = effect;
+
+    // Start the thread
+    pthread_t thread;
+    if (pthread_create(&thread, NULL, ffbEffectThread, threadData) != 0)
+    {
+        perror("Failed to create FFB thread");
+        free(threadData);
+        close(fd);
+    }
+    else
+    {
+        pthread_detach(thread);
+    }
+}
+
 ControllerStatus loadEvdevControllers(Controllers *controllers)
 {
     struct dirent **namelist;
-    controllers->count = scandir("/dev/input", &namelist, isEventDevice, alphasort);
+    int count = scandir("/dev/input", &namelist, isEventDevice, alphasort);
+    if (count < 0)
+    {
+        return CONTROLLER_STATUS_ERROR;
+    }
+    controllers->count = count;
 
     controllers->controller = malloc(sizeof(Controller) * controllers->count);
-    if (controllers == NULL)
+    if (controllers->controller == NULL)
     {
         for (int i = 0; i < controllers->count; i++)
         {
@@ -1020,6 +1147,28 @@ ControllerStatus loadEvdevControllers(Controllers *controllers)
                 }
             }
         }
+        // Test if Controller support FFB
+        if (test_bit(EV_FF, bit[0]))
+        {
+            controllers->controller[i].hasFFB = 1;
+            printf("FFB is available on controller %s\n", controllers->controller[i].name);
+
+            // FFB effect
+            initFFB(&controllers->controller[i], 0xFFFF, 0xFFFF, 2000);
+
+            if (controllers->controller[i].ffbEffectId >= 0)
+            {
+                printf("FFB effect initialized with ID: %d\n", controllers->controller[i].ffbEffectId);
+            }
+            else
+            {
+                printf("Failed to initialize FFB effect on controller %s\n", controllers->controller[i].name);
+            }
+        }
+        else
+        {
+            controllers->controller[i].hasFFB = 0;
+        }
 
         close(controller);
     }
@@ -1111,7 +1260,6 @@ void *controllerThread(void *_args)
                     else
                         setSwitch(args->controller->keyTriggers[event.code].player, args->controller->keyTriggers[event.code].channel,
                                   event.value == 0 ? 0 : 1);
-
                 }
                 break;
 
@@ -1167,6 +1315,26 @@ void *controllerThread(void *_args)
 
                             if(channel == ANALOGUE_1 && (gGrp == GROUP_ID4_EXP || gGrp == GROUP_ID4_JAP || gGrp == GROUP_ID5))
                                 scaled = (scaled - 0.5f) * 0.35f + 0.5f;
+
+                            if (channel == ANALOGUE_1 || channel == ANALOGUE_2)
+                            {
+                                args->controller->lastAnalogueValue[channel] = scaled;
+
+                                double x_pos = (channel == ANALOGUE_1) ? scaled : args->controller->lastAnalogueValue[ANALOGUE_1];
+                                double y_pos = (channel == ANALOGUE_2) ? scaled : args->controller->lastAnalogueValue[ANALOGUE_2];
+                                
+                                updateCrosshairPosition(0, x_pos, y_pos);
+                            }
+
+                            if (channel == ANALOGUE_3 || channel == ANALOGUE_4)
+                            {
+                                args->controller->lastAnalogueValue[channel] = scaled;
+
+                                double x_pos = (channel == ANALOGUE_3) ? scaled : args->controller->lastAnalogueValue[ANALOGUE_3];
+                                double y_pos = (channel == ANALOGUE_4) ? scaled : args->controller->lastAnalogueValue[ANALOGUE_4];
+
+                                updateCrosshairPosition(1, x_pos, y_pos);
+                            }
 
                             setAnalogue(channel, scaled * (pow(2, jvsBits) - 1));
                         }

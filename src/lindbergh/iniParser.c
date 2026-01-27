@@ -44,7 +44,10 @@ IniConfig *iniLoad(const char *filename)
     }
     IniConfig *config = calloc(1, sizeof(IniConfig));
     if (!config)
+    {
+        fclose(file);
         return NULL;
+    }
     char line[1024];
     IniSection *currentSection = NULL;
     while (fgets(line, sizeof(line), file))
@@ -54,7 +57,14 @@ IniConfig *iniLoad(const char *filename)
             continue;
         if (trimmedLine[0] == '[' && trimmedLine[strlen(trimmedLine) - 1] == ']')
         {
-            config->sections = realloc(config->sections, (config->numSections + 1) * sizeof(IniSection));
+            IniSection *newSections = realloc(config->sections, (config->numSections + 1) * sizeof(IniSection));
+            if (!newSections)
+            {
+                iniFree(config);
+                fclose(file);
+                return NULL;
+            }
+            config->sections = newSections;
             currentSection = &config->sections[config->numSections++];
             currentSection->numPairs = 0;
             currentSection->pairs = NULL;
@@ -70,7 +80,14 @@ IniConfig *iniLoad(const char *filename)
             value++;
             key = trimString(key);
             value = trimString(value);
-            currentSection->pairs = realloc(currentSection->pairs, (currentSection->numPairs + 1) * sizeof(IniKeyValuePair));
+            IniKeyValuePair *newPairs = realloc(currentSection->pairs, (currentSection->numPairs + 1) * sizeof(IniKeyValuePair));
+            if (!newPairs)
+            {
+                iniFree(config);
+                fclose(file);
+                return NULL;
+            }
+            currentSection->pairs = newPairs;
             IniKeyValuePair *pair = &currentSection->pairs[currentSection->numPairs++];
             pair->key = strdup(key);
             pair->value = strdup(value);
@@ -142,7 +159,10 @@ bool iniSetValue(IniConfig *config, const char *sectionName, const char *key, co
     IniSection *section = iniGetSection(config, sectionName);
     if (!section)
     {
-        config->sections = realloc(config->sections, (config->numSections + 1) * sizeof(IniSection));
+        IniSection *newSections = realloc(config->sections, (config->numSections + 1) * sizeof(IniSection));
+        if (!newSections)
+            return false;
+        config->sections = newSections;
         section = &config->sections[config->numSections++];
         section->name = strdup(sectionName);
         section->pairs = NULL;
@@ -162,7 +182,10 @@ bool iniSetValue(IniConfig *config, const char *sectionName, const char *key, co
     }
 
     // Key not found, add a new key-value pair.
-    section->pairs = realloc(section->pairs, (section->numPairs + 1) * sizeof(IniKeyValuePair));
+    IniKeyValuePair *newPairs = realloc(section->pairs, (section->numPairs + 1) * sizeof(IniKeyValuePair));
+    if (!newPairs)
+        return false;
+    section->pairs = newPairs;
     IniKeyValuePair *pair = &section->pairs[section->numPairs++];
     pair->key = strdup(key);
     pair->value = strdup(value);

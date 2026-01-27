@@ -1,131 +1,226 @@
-#include "string.h"
 
+#include <stdint.h>
+#include <string.h>
+
+#include "config.h"
 #include "driveBoard.h"
+#include "forceFeedback.h"
+#include "hook.h"
 #include "jvs.h"
 
 #define DRIVEBOARD_READY 0x00
 #define DRIVEBOARD_NOT_INIT 0x11
 #define DRIVEBOARD_BUSY 0x44
 
-int wheelTest = 0;
-unsigned char response = DRIVEBOARD_READY;
+extern uint32_t gId;
+extern int gGrp;
+extern DeviceType hooks[5];
 
-double steerValue = 0.5;
-double force = 0.00;
+unsigned char response;
+int wheelInitialized;
+
+uint8_t buffer[64];
+uint8_t bufferIdx = 0;
 
 int initDriveboard()
 {
-    wheelTest = 0;
     response = DRIVEBOARD_NOT_INIT;
-
-    setAnalogue(ANALOGUE_1, steerValue);
-
+    wheelInitialized = 0;
     return 0;
 }
 
+int enableRead = 0;
+
 ssize_t driveboardRead(int fd, void *buf, size_t count)
 {
-    memcpy(buf, &response, 1);
+    memset(buffer, '\0', 64);
+    if (enableRead)
+    {
+        char *mybuf = (char *)buf;
+        mybuf[0] = response;
+        enableRead = 0;
+    }
     return 1;
 }
 
 ssize_t driveboardWrite(int fd, const void *buf, size_t count)
 {
-
-    if (count != 4)
+    const uint8_t *bytes = (const uint8_t *)buf;
+    for (size_t i = 0; i < count; ++i)
     {
-        //printf("Error: Drive board count not what expected\n");
-        return 1;
-    }
-
-    unsigned char *buffer = (unsigned char *)buf;
-
-    switch (buffer[0])
-    {
-    case 0xFF:
-    {
-        //printf("Driveboard: Drive board reset\n");
-        response = DRIVEBOARD_READY;
-    }
-    break;
-
-    case 0x81:
-    {
-        //printf("Driveboard: Drive board reset 2\n");
-        response = DRIVEBOARD_NOT_INIT;
-    }
-    break;
-
-    case 0xFC:
-    {
-        //printf("Driveboard: Start wheel bounds testing\n");
-        wheelTest = 1;
-    }
-    break;
-
-    case 0x80:
-    {
-        if (buffer[1] == 0 && buffer[2] == 0)
+        buffer[bufferIdx++] = bytes[i];
+        if (bufferIdx == 4)
         {
-            force = 0;
+            // if (buffer[0] != 0xfd)// && buffer[0] != 0x00 && buffer[0] != 0xff && buffer[0] != 0x01 && buffer[0] != 0xfa)
+            // {
+            //     printf("Write: fd: %d,count: %zu, bufferIdx: %d\n", fd, count, bufferIdx);
+            //     for (int x = 0; x < 4; x++)
+            //     {
+            //         printf("0x%02x ", buffer[x]);
+            //     }
+            //     printf("\n");
+            // }
+            processDrivePacket(buffer, 1);
+            sdlFfbDriveboard(buffer, 4);
+            if (count != 7)
+                bufferIdx = 0;
         }
-
-        if (buffer[1] == 1 && buffer[2] == 1)
+        else if (bufferIdx == 7)
         {
-
-            if (steerValue >= 0.9 && force > 0)
-                break;
-
-            if (steerValue <= 0.1 && force < 0)
-                break;
-
-            steerValue += force;
-            setAnalogue(ANALOGUE_1, (int)(steerValue * 1024));
+            uint8_t player2Buffer[4];
+            player2Buffer[0] = buffer[0];
+            player2Buffer[1] = buffer[4];
+            player2Buffer[2] = buffer[5];
+            player2Buffer[3] = buffer[6];
+            processDrivePacket(player2Buffer, 2);
+            // if (player2Buffer[0] != 0xfd && player2Buffer[0] != 0x00 && player2Buffer[0] != 0xff && player2Buffer[0] != 0x01)
+            // {
+                // printf("Write P2: fd: %d,count: %zu, bufferIdx: %d\n", fd, count, bufferIdx);
+                // for (int x = 0; x < 4; x++)
+                // {
+                //     printf("0x%02x ", player2Buffer[x]);
+                // }
+                // printf("\n");
+            // }
+            bufferIdx = 0;
         }
-
-        //printf("Driveboard move %f %f\n", steerValue, force);
     }
-    break;
+    return count;
+}
 
-    case 0x9e:
-    case 0x84:
+void processDrivePacket(uint8_t *buf, int player)
+{
+    static int fcP1 = 0;
+    static int fcP2 = 0;
+
+    switch (buf[0])
     {
-        response = DRIVEBOARD_READY;
-
-        if (buffer[1] == 1)
-            force = ((-1 * ((double)buffer[2] / 128.0)) * 2) / 100;
-
-        if (buffer[1] == 0)
-            force = ((1 - ((double)buffer[2] / 128.0)) * 2) / 100;
-
-        //printf("Driveboard set force%f %f\n", steerValue, force);
-    }
-    break;
-
-    case 0xFA:
-    case 0xFD:
-    {
-        //printf("Driveboard: auto turn wheel mode\n");
-
-        if (wheelTest)
+        case 0xFF:
         {
-            // printf("Increment wheel until 0.9 -> %d\n", (int)(steerValue * 255));
-            steerValue += 0.09;
-            setAnalogue(ANALOGUE_1, (int)(steerValue * 1024));
-            response = DRIVEBOARD_BUSY;
-            if (steerValue >= 0.9)
+            printf("Driveboard: Drive board reset\n");
+            // response = 0x88;
+            response = DRIVEBOARD_READY;
+        }
+        break;
+
+        case 0x81:
+        {
+            printf("Driveboard: Drive board reset 2\n");
+            response = DRIVEBOARD_NOT_INIT;
+        }
+        break;
+
+        case 0xFC:
+        {
+            printf("Driveboard: Start wheel bounds testing\n");
+            if (player == 1)
             {
-                wheelTest = 0;
-                response = DRIVEBOARD_READY;
+                if (fcP1 == 0)
+                {
+                    response = DRIVEBOARD_BUSY;
+                    fcP1++;
+                    break;
+                }
+            }
+            else if (player == 2)
+            {
+                if (fcP2 == 0)
+                {
+                    response = DRIVEBOARD_BUSY;
+                    fcP2++;
+                    break;
+                }
+            }
+            response = DRIVEBOARD_READY;
+        }
+        break;
+
+        case 0x80:
+        {
+            if ((buf[1] == 0x00 && buf[2] == 0x00 && buf[3] == 0x00) || (buf[1] == 0x01 && buf[2] == 0x00 && buf[3] == 0x01) ||
+                (buf[1] == 0x01 && buf[2] == 0x00 && buf[3] == 0x00))
+                wheelInitialized = 1;
+            response = DRIVEBOARD_READY;
+        }
+        break;
+
+        case 0x83:
+        case 0x86:
+        {
+            response = DRIVEBOARD_READY;
+        }
+        break;
+
+        case 0x9e:
+        {
+            response = DRIVEBOARD_READY;
+        }
+        break;
+        case 0x84:
+        {
+            response = DRIVEBOARD_READY;
+
+            if ((buf[1] == 0x01 && buf[2] == 0x00 && buf[3] == 0x05) && !wheelInitialized)
+            {
+                if (player == 1)
+                    setAnalogue(ANALOGUE_1, (int)(0.5f * 1024.0f));
+                else
+                    setAnalogue(ANALOGUE_5, (int)(0.5f * 1024.0f));
+                break;
+            }
+
+            uint8_t cmd1 = buf[1];
+            if (gGrp == GROUP_OUTRUN_TEST)
+            {
+                if (buf[4] != 0)
+                    cmd1 = buf[4];
+            }
+
+            float scaled = 0.0f;
+            if (cmd1 == 1)
+                scaled = (128.0f - (buf[2] - 1)) / 256.0f;
+
+            if (cmd1 == 0)
+                scaled = (256.0f - (buf[2] + 1)) / 256.0f;
+
+            if (!wheelInitialized)
+            {
+                if (player == 1)
+                    setAnalogue(ANALOGUE_1, (int)(scaled * 1024.0f));
+                else
+                    setAnalogue(ANALOGUE_5, (int)(scaled * 1024.0f));
             }
         }
-    }
-    break;
-
-    default:
-        //printf("Driveboard: Unknown command received %X\n", buffer[0]);
         break;
+
+        case 0xF1:
+        {
+            response = DRIVEBOARD_READY;
+        }
+        break;
+
+        case 0xFA:
+        case 0xFD:
+        {
+            response = DRIVEBOARD_READY;
+        }
+        break;
+
+        default:
+            // printf("Driveboard: Unknown command received %X\n", buffer[0]);
+            break;
     }
 
-    return 0;
+    enableRead = 1;
+}
+
+int driveBoardioctl(int fd, unsigned int request, void *data)
+{
+    if (enableRead)
+    {
+        uint8_t d = 1;
+        memcpy(data, &d, sizeof(uint8_t));
+        return 0;
+    }
+    return -1;
 }

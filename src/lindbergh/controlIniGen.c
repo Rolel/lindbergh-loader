@@ -1,6 +1,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "controlIniGen.h"
 #include "iniParser.h"
@@ -211,6 +212,9 @@ const size_t gDefaultMahjongBindingsSize = sizeof(gDefaultMahjongBindings) / siz
 
 char *toUpperCase(const char *str)
 {
+    if (str == NULL)
+        return NULL;
+
     char *result = (char *)malloc(strlen(str) + 1);
 
     if (result == NULL)
@@ -269,9 +273,15 @@ static void getBindingString(const ControlBinding *binding, char *buffer, size_t
                 snprintf(temp_buffer, sizeof(temp_buffer), "JOY%d_HAT%d_RIGHT", binding->deviceIndex, binding->sdlId);
             break;
         case INPUT_TYPE_GAMEPAD_BUTTON:
-            snprintf(temp_buffer, sizeof(temp_buffer), "GC%d_BUTTON_%s", binding->deviceIndex,
-                     toUpperCase(SDL_GetGamepadStringForButton(binding->sdlId)));
+        {
+            char *buttonName = toUpperCase(SDL_GetGamepadStringForButton(binding->sdlId));
+            if (buttonName)
+            {
+                snprintf(temp_buffer, sizeof(temp_buffer), "GC%d_BUTTON_%s", binding->deviceIndex, buttonName);
+                free(buttonName);
+            }
             break;
+        }
         case INPUT_TYPE_JOY_AXIS:
         case INPUT_TYPE_GAMEPAD_AXIS:
         {
@@ -279,8 +289,14 @@ static void getBindingString(const ControlBinding *binding, char *buffer, size_t
             if (binding->type == INPUT_TYPE_JOY_AXIS)
                 snprintf(prefix, sizeof(prefix), "JOY%d_AXIS_%d", binding->deviceIndex, binding->sdlId);
             else
-                snprintf(prefix, sizeof(prefix), "GC%d_AXIS_%s", binding->deviceIndex,
-                         toUpperCase(SDL_GetGamepadStringForAxis(binding->sdlId)));
+            {
+                char *axisName = toUpperCase(SDL_GetGamepadStringForAxis(binding->sdlId));
+                if (axisName)
+                {
+                    snprintf(prefix, sizeof(prefix), "GC%d_AXIS_%s", binding->deviceIndex, axisName);
+                    free(axisName);
+                }
+            }
 
             switch (binding->axisMode)
             {

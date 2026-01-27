@@ -18,9 +18,10 @@ OBJS := $(filter-out src/lindbergh/lindbergh.o, $(OBJS))
 
 all: lindbergh libxdiff.a lindbergh.so libsegaapi.so libkswapapi.so libposixtime.so
 
-lindbergh: src/lindbergh/lindbergh.c src/lindbergh/iniParser.c src/lindbergh/sdlInput.c src/lindbergh/controlIniGen.c src/lindbergh/log.c src/lindbergh/jvs.c src/lindbergh/config.c src/lindbergh/evdevInput.c src/lindbergh/gameData.c src/lindbergh/configIni.c
+lindbergh: src/lindbergh/lindbergh.c src/lindbergh/iniParser.c src/lindbergh/sdlInput.c src/lindbergh/controlIniGen.c src/lindbergh/log.c src/lindbergh/output.c src/lindbergh/jvs.c src/lindbergh/config.c src/lindbergh/evdevInput.c src/lindbergh/gameData.c src/lindbergh/configIni.c
 	mkdir -p $(BUILD)
-	$(CC) -m32 -DCOMPILING_LINDBERGH_ELF src/lindbergh/lindbergh.c src/lindbergh/iniParser.c src/lindbergh/sdlInput.c src/lindbergh/controlIniGen.c src/lindbergh/log.c src/lindbergh/jvs.c src/lindbergh/config.c src/lindbergh/evdevInput.c src/lindbergh/gameData.c src/lindbergh/configIni.c -o $(BUILD)/lindbergh -lm -lSDL3 -L/app/lib32
+	$(CC) -m32 -DCOMPILING_LINDBERGH_ELF src/lindbergh/lindbergh.c src/lindbergh/iniParser.c src/lindbergh/sdlInput.c src/lindbergh/controlIniGen.c src/lindbergh/log.c src/lindbergh/output.c src/lindbergh/jvs.c src/lindbergh/config.c src/lindbergh/evdevInput.c src/lindbergh/gameData.c src/lindbergh/configIni.c -o $(BUILD)/lindbergh -lm -lSDL3 -L/app/lib32
+
 
 libxdiff.a: $(XDIFF_OBJS)
 	mkdir -p $(BUILD)

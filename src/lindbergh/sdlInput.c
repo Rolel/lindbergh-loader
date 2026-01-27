@@ -16,12 +16,15 @@
 
 #include "blitStretching.h"
 #include "config.h"
+#include "crossHair.h"
+#include "forceFeedback.h"
 #include "gameControllerMappings.h"
 #include "iniParser.h"
 #include "sdlInput.h"
 #include "jvs.h"
 #include "log.h"
 #include "touchScreen.h"
+#include "wiimoteEvdev.h"
 
 // --- GLOBAL STATE AND MAPPINGS ---
 ActionState gActionStates[MAX_ENTITIES][NUM_LOGICAL_ACTIONS] = {0};
@@ -51,6 +54,7 @@ ControlBinding gJoyButtonBindings[MAX_JOYSTICKS][MAX_JOY_BUTTONS] = {0};
 BindingPair gControllerAxisBindings[MAX_JOYSTICKS][SDL_GAMEPAD_AXIS_COUNT] = {0};
 ControlBinding gControllerButtonBindings[MAX_JOYSTICKS][SDL_GAMEPAD_BUTTON_COUNT] = {0};
 HatBinding gJoyHatBindings[MAX_JOYSTICKS][MAX_JOY_HATS] = {0};
+bool gTriggerInsertKey = false;
 
 extern uint32_t gId;
 extern int gGrp;
@@ -66,8 +70,14 @@ extern Dest dest;
 extern int phX, phY, phW, phH;
 int phIsDragging = 0;
 
+extern bool mj4MousePressed;
+int mj4MouseX = 0;
+int mj4MouseY = 0;
 extern int drawableW;
 extern int drawableH;
+extern bool mj4TouchedInsideScreen;
+
+extern bool gTriggerInsertKey;
 
 int jvsAnalogueMaxValue;
 int jvsAnalogueCenterValue;
@@ -368,7 +378,16 @@ int initSdlInput(char *controlsPath)
                 }
             }
         }
+        SDL_free(joystics);
     }
+
+    if (sdlJoysticks.joysticksCount > 0)
+    {
+        sdlFfbInit();
+    }
+
+    findAndOpenWiiMotes(&sdlJoysticks);
+    startWiimoteThreads();
 
     // Save any new GUID assignments back to the INI file.
     if (isProfileLoaded)
@@ -1230,8 +1249,47 @@ void addActionToDirtyList(JVSPlayer player, LogicalAction action)
  */
 void processSdlEvent(const SDL_Event *e)
 {
-    if (!sdlInputInitialized)
-        return;
+    // Make sure to use the variable, not the macro name
+    if (e->type == SDL_WIIMOTION_EVENT)
+    {
+        int controllerIndex = e->user.code;
+        int irX = (intptr_t)e->user.data1;
+        int irY = (intptr_t)e->user.data2;
+
+        if (irX == 0 || irX == 1023 || irY == 0 || irY == 767)
+        {
+            gActionStates[controllerIndex + 1][LA_Reload].isActive = true;
+            addActionToDirtyList(controllerIndex + 1, LA_Reload);
+        }
+        else
+        {
+            gActionStates[controllerIndex + 1][LA_Reload].isActive = false;
+            addActionToDirtyList(controllerIndex + 1, LA_Reload);
+        }
+
+        // The Wii Remote IR gives 0-1023 for X and 0-767 for Y.
+        // We can normalize this to 0.0 - 1.0 to behave like our mouse input.
+        float posX = 1.0f - (irX / 1023.0f);
+        float posY = irY / 767.0f;
+
+        // printf("idx: %d, x: %f, y: %f\n", controller_index, posX, posY);
+
+        ActionState *stateX = &gActionStates[controllerIndex + 1][LA_GunX];
+        if (fabs(stateX->analogValue - posX) > 0.001f)
+        {
+            stateX->analogValue = posX;
+            addActionToDirtyList(controllerIndex + 1, LA_GunX);
+        }
+
+        ActionState *stateY = &gActionStates[controllerIndex + 1][LA_GunY];
+        if (fabs(stateY->analogValue - posY) > 0.001f)
+        {
+            stateY->analogValue = posY;
+            addActionToDirtyList(controllerIndex + 1, LA_GunY);
+        }
+
+        return; // Event handled
+    }
 
     switch (e->type)
     {
@@ -1523,6 +1581,8 @@ void processSdlEvent(const SDL_Event *e)
                         }
                     }
                 }
+                if (gameType == MAHJONG && getConfig()->emulateTouchscreen)
+                    handleMahjongTouch(e, drawableW, drawableH);
             }
         }
         break;
@@ -1780,6 +1840,14 @@ void processChangedActions()
         switch (map->call_type)
         {
             case JVS_CALL_SWITCH:
+                if ((gGrp == GROUP_ID4_EXP || gGrp == GROUP_ID4_JAP || gGrp == GROUP_ID5) && actionId == LA_CardInsert)
+                {
+                    if (state->isActive)
+                        gTriggerInsertKey = true;
+                    else
+                        gTriggerInsertKey = false;
+                    break;
+                }
                 setSwitch(player, map->jvsInput, state->isActive);
                 break;
             case JVS_CALL_ANALOGUE:
@@ -1807,6 +1875,36 @@ void processChangedActions()
                 if (getConfig()->idSteeringPercentageReduction > 0.0f && map->jvsInput == ANALOGUE_1 &&
                     (gGrp == GROUP_ID4_EXP || gGrp == GROUP_ID4_JAP || gGrp == GROUP_ID5))
                     state->analogValue = (state->analogValue - 0.5f) * (getConfig()->idSteeringPercentageReduction / 100.0f) + 0.5f;
+
+                if (p1CrossHairInitialized && (map->jvsInput == ANALOGUE_1 || map->jvsInput == ANALOGUE_2))
+                {
+                    static float lastAnalogue1 = 0.0f;
+                    static float lastAnalogue2 = 0.0f;
+                    if (map->jvsInput == ANALOGUE_1)
+                        lastAnalogue1 = state->analogValue;
+                    else
+                        lastAnalogue2 = state->analogValue;
+
+                    float xPos = map->jvsInput == ANALOGUE_1 ? state->analogValue : lastAnalogue1;
+                    float yPos = map->jvsInput == ANALOGUE_2 ? state->analogValue : lastAnalogue2;
+
+                    updateCrosshairPosition(player - 1, xPos, yPos);
+                }
+
+                if (p2CrossHairInitialized && (map->jvsInput == ANALOGUE_3 || map->jvsInput == ANALOGUE_4))
+                {
+                    static float lastAnalogue3 = 0.0f;
+                    static float lastAnalogue4 = 0.0f;
+                    if (map->jvsInput == ANALOGUE_3)
+                        lastAnalogue3 = state->analogValue;
+                    else
+                        lastAnalogue4 = state->analogValue;
+
+                    float xPos = map->jvsInput == ANALOGUE_3 ? state->analogValue : lastAnalogue3;
+                    float yPos = map->jvsInput == ANALOGUE_4 ? state->analogValue : lastAnalogue4;
+
+                    updateCrosshairPosition(player - 1, xPos, yPos);
+                }
 
                 setAnalogue(map->jvsInput, (int)(state->analogValue * jvsAnalogueMaxValue));
                 break;
@@ -2055,6 +2153,7 @@ int listSdlControllers(void)
             }
             printf("\n");
         }
+        SDL_free(joysticks);
     }
     SDL_Quit();
     return 0;

@@ -44,10 +44,12 @@ int getGPUVendorID()
     if (!config->GPUVendorString)
     {
         fprintf(stderr, "Error: Could not get renderer string\n");
+        SDL_GL_DestroyContext(context);
         SDL_DestroyWindow(window);
         return ERROR_GPU;
     }
     gettingGPUVendor = false;
+    SDL_GL_DestroyContext(context);
     SDL_DestroyWindow(window);
 
     if (strstr(config->GPUVendorString, "NVIDIA") != NULL)

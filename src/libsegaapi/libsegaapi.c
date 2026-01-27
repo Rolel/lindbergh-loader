@@ -60,6 +60,7 @@ typedef struct Buffer
     SynthParams synthParams[MOD_ENV_TO_FILTER_CUTOFF + 1];
 
     int lastStatus;
+    int ownsData;
 
 } Buffer;
 
@@ -940,17 +941,20 @@ int SEGAAPI_CreateBuffer(BufferConfig *pConfig, BufferCallback pCallback, unsign
     if (dwFlags & ALLOC_USER_MEM)
     {
         buffer->data = (uint8_t *)pConfig->mapData.hBufferHdr;
+        buffer->ownsData = 0;
     }
     // Reuse buffer
     else if (dwFlags & USE_MAPPED_MEM)
     {
         buffer->data = (uint8_t *)pConfig->mapData.hBufferHdr;
+        buffer->ownsData = 0;
     }
     // Allocate new buffer (caller will fill it later)
     else
     {
         buffer->data = (uint8_t *)malloc(buffer->size);
         memset(buffer->data, 0, buffer->size);
+        buffer->ownsData = 1;
     }
 
     pConfig->mapData.hBufferHdr = buffer->data;
@@ -1013,6 +1017,14 @@ int SEGAAPI_DestroyBuffer(void *hHandle)
     Buffer *buffer = (Buffer *)hHandle;
 
     FAudioVoice_DestroyVoice(buffer->fAudioSourceVoice);
+
+    if (buffer->fAudioVoiceCallback)
+        free(buffer->fAudioVoiceCallback);
+
+    if (buffer->ownsData && buffer->data)
+        free(buffer->data);
+
+    free(buffer);
 
     // TODO: hHandle = NULL?
     debug(1, "SEGAAPI_DestroyBuffer called\n");
@@ -1154,6 +1166,32 @@ int SEGAAPI_Init(void)
 int SEGAAPI_Exit(void)
 {
     debug(1, "SEGAAPI_Exit called\n");
+
+    pthread_mutex_lock(&fAudioMutex);
+
+    for (int i = 0; i < OUTPUT_CHANNELS; i++)
+    {
+        if (fAudioSubmixVoices[i])
+        {
+            FAudioVoice_DestroyVoice(fAudioSubmixVoices[i]);
+            fAudioSubmixVoices[i] = NULL;
+        }
+    }
+
+    if (fAudioMasteringVoice)
+    {
+        FAudioVoice_DestroyVoice(fAudioMasteringVoice);
+        fAudioMasteringVoice = NULL;
+    }
+
+    if (fAudio)
+    {
+        FAudio_Release(fAudio);
+        fAudio = NULL;
+    }
+
+    pthread_mutex_unlock(&fAudioMutex);
+    pthread_mutex_destroy(&fAudioMutex);
 
     return SEGA_SUCCESS;
 }
