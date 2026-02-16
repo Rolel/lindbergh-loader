@@ -222,7 +222,7 @@ void startSDL(int *argcp, char **argv)
           gId == GHOST_SQUAD_EVOLUTION || gId == PRIMEVAL_HUNT))
         initCrossHairs();
 
-    if ((gId == MJ4_REVG || gId == MJ4_EVO || gId == QUIZ_AXA || gId == QUIZ_AXA_LIVE) && strcmp(getConfig()->touchCursor, "") != 0 &&
+    if ((gGrp == GROUP_MJ4 || gId == QUIZ_AXA || gId == QUIZ_AXA_LIVE) && strcmp(getConfig()->touchCursor, "") != 0 &&
         getConfig()->emulateTouchscreen)
         setCursor(touchCursor);
     else if (getConfig()->hideCursor)

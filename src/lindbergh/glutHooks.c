@@ -106,7 +106,7 @@ void FGAPIENTRY glutSwapBuffers(void)
     sprintf(windowTitle, "%s - FPS: %.2f", sdlGameTitle, calculateFps());
     SDL_SetWindowTitle(sdlWindow, windowTitle);
 
-    if (gId == MJ4_REVG || gId == MJ4_EVO)
+    if (gGrp == GROUP_MJ4)
         mj4TouchHolding();
 }
 
