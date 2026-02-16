@@ -110,6 +110,7 @@ uint32_t cleanElfCRC32[] = {
     0xDCC1f8E7, // DVP-0078  | ramboM.elf
     0x05647A8E, // DVP-0079  | hummer_Master.elf
     0x0AD7CF0F, // DVP-0081  | mj4
+    0xEE2D5861, // DVP-0081B | mj4
     0x4442EA15, // DVP-0083  | hummer_Master.elf
     0x8DF6BBF9, // DVP-0084  | id5.elf
     0x2AF8004E, // DVP-0084A | id5.elf

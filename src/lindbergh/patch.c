@@ -1950,6 +1950,46 @@ int initPatch()
             }
         }
         break;
+        case MJ4_EVO_REVB:
+        {
+            detourFunction(0x08841fbd, amDongleInit);
+            detourFunction(0x08840849, amDongleIsAvailable);
+            detourFunction(0x08840866, amDongleIsDevelop);
+            detourFunction(0x0884136a, amDongleUpdate);
+
+            // Fixes and patches to bypss network check
+            amDipswContextAddr = (void *)0x0af9513c; // Address of amDipswContext
+            detourFunction(0x088405dc, amDipswInit);
+            detourFunction(0x08840660, amDipswExit);
+            detourFunction(0x088406d5, amDipswGetData);
+            detourFunction(0x0884074b, amDipswSetLed);
+
+            patchMemoryFromString(0x080ea0f5, "909090909090");
+            detourFunction(0x080e327c, stubRetZero); // skip checks
+            detourFunction(0x080ee51e, stubRetZero);
+            patchMemoryFromString(0x080ea0e3, "75");
+            patchMemoryFromString(0x08c065b8, "00");
+
+            patchMemoryFromString(0x080eac5c, "01");
+            patchMemoryFromString(0x08c64e00, "ffffffff");
+            patchMemoryFromString(0x080e9346, "90909090909090909090");
+            patchMemoryFromString(0x080eaca6, "90909090909090909090");
+
+            patchMemoryFromString(0x0885d08d, "2e2f72616d2f746f2e74787400");     // Patch /home/disk2 folder
+            patchMemoryFromString(0x0885d0a4, "2e2f72616d2f66726f6d2e74787400"); // Patch /home/disk2 folder
+            patchMemoryFromString(0x0885d0bd, "2e2f72616d2f2e746d7000");         // Patch /home/disk2 folder
+            patchMemoryFromString(0x0885d10d, "2e2f72616d00");                   // Patch /home/disk2 folder
+            patchMemoryFromString(0x0885d11d, "2e2f666f6f3100");                 // Patch /home/disk2 folder
+            patchMemoryFromString(0x0885d12e, "2e2f666f6f3200");                 // Patch /home/disk2 folder
+            patchMemoryFromString(0x08860885, "2e2f72616d2f746d7000");           // Patch /home/disk2 folder
+            patchMemoryFromString(0x08863fef, "2e2f00");                         // Patch /home/disk2 folder
+
+            if (GPUVendor != NVIDIA_GPU)
+            {
+                detourFunction(0x08051314, gl_ProgramStringARB);
+            }
+        }
+        break;
         case MJ4_REVA:
         {
             setVariable(0x0a250914, 2);

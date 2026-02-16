@@ -2560,6 +2560,13 @@ int initResolutionPatches()
             patchMemoryFromString(0x08053b24, "b803000000"); // Skips resolution set by the Dip Switches.
         }
         break;
+        case MJ4_EVO_REVB:
+        {
+            patchMemoryFromString(0x08052961, "01");         // Enable Anti Alias
+            patchMemoryFromString(0x0805295a, "03");         // Force 1024x768
+            patchMemoryFromString(0x08053b24, "b803000000"); // Skips resolution set by the Dip Switches.
+        }
+        break;
         case OUTRUN_2_SP_SDX:
         {
             if (gWidth <= 800 && gHeight <= 480)

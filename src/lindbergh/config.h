@@ -41,6 +41,7 @@
 #define MJ4_REVF 0x220ac11                                   // DVP-0049F
 #define MJ4_REVG 0x57813a7                                   // DVP-0049G
 #define MJ4_EVO 0xb785a0e9                                   // DVP-0081
+#define MJ4_EVO_REVB 0x7f11d214                              // DVP-0081B
 #define OUTRUN_2_SP_SDX 0x92c196d5                           // DVP-0015
 #define OUTRUN_2_SP_SDX_REVA 0x4debd5f0                      // DVP-0015A
 #define OUTRUN_2_SP_SDX_REVA_TEST 0x6b2d5c46                 // DVP-0015A

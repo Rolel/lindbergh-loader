@@ -40,6 +40,7 @@ The follow list of games are supported. It is worth noting that there are multip
 | SEGA Network Taisen Mahjong MJ4 Rev F            | SBPN    | DVP-0049F | ✓      | ✓            | ✓          | ✓                 |
 | SEGA Network Taisen Mahjong MJ4 Rev G            | SBPN    | DVP-0049G | ✓      | ✓            | ✓          | ✓                 |
 | SEGA Network Taisen Mahjong MJ4 Evolution        | SBTA    | DVP-0081  | ✓      | ✓            | ✓          | ✓                 |
+| SEGA Network Taisen Mahjong MJ4 Evolution Rev B  | SBTA    | DVP-0081B | ✓      | ✓            | ✓          | ✓                 |
 | Outrun 2 SP SDX                                  | SBMB    | DVP-0015  | ✓      | ✓            | ✓          | ✓                 |
 | Outrun 2 SP SDX Rev A                            | SBMB    | DVP-0015A | ✓      | ✓            | ✓          | ✓                 |
 | Primeval Hunt                                    | SBPP    | DVP-0048  | ✓      | ✓            | ✓          | ✓                 |
