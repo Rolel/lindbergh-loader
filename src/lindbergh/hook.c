@@ -64,6 +64,8 @@ extern bool cachedShaderFilesLoaded;
 extern char vf5StageNameAbbr[5];
 bool phShowCursorInGame = false;
 
+extern bool mj4ResponseReady;
+
 extern FpsLimit fpsLimit;
 Controllers controllers = {0};
 extern SDLControllers sdlJoysticks;
@@ -181,6 +183,31 @@ uint32_t getCrc32(const char *s, ssize_t n)
     return ~crc;
 }
 
+int setConfigFolder()
+{
+    char *home = getenv("HOME");
+    if (!home)
+    {
+        fprintf(stderr, "HOME environment variable not set.\n");
+        return 1;
+    }
+
+    char config_path[PATH_MAX];
+    snprintf(config_path, sizeof(config_path), "%s/.config/lindbergh-loader", home);
+    configFolder = strdup(config_path);
+
+    char config_base[PATH_MAX];
+    snprintf(config_base, sizeof(config_base), "%s/.config", home);
+    mkdir(config_base, 0755);
+
+    if (mkdir(config_path, 0755) == -1)
+    {
+        if (errno != EEXIST)
+            return 1;
+    }
+    return 0;
+}
+
 /**
  * @brief Trims leading and trailing whitespace and quotes from a string.
  *
@@ -282,9 +309,12 @@ void __attribute__((constructor)) hook_init()
 
     // Implement SIGSEGV handler
     struct sigaction act;
+    memset(&act, 0, sizeof(act));
     act.sa_sigaction = handleSegfault;
     act.sa_flags = SA_SIGINFO;
     sigaction(SIGSEGV, &act, NULL);
+
+    // setConfigFolder();
 
     char *envPath = getenv("LINDBERGH_CONFIG_PATH");
     initConfig(envPath);
@@ -343,6 +373,11 @@ void __attribute__((constructor)) hook_init()
     }
 
     envPath = getenv("LINDBERGH_CONTROLS_PATH");
+    if (envPath == NULL)
+    {
+        envPath = "";
+    }
+
     if (initSdlInput(envPath) != 0)
         exit(1);
 
@@ -407,6 +442,20 @@ DIR *opendir(const char *dirname)
     if (strcmp(dirname, "/tmp/") == 0 && gGrp == GROUP_ID5)
     {
         return _opendir(dirname + 1);
+    }
+
+    if (strcmp(getConfig()->idCardFolder, "") != 0 && strcmp(dirname, ".") == 0)
+    {
+        if (gGrp == GROUP_ID5 || gGrp == GROUP_ID4_EXP || gGrp == GROUP_ID4_JAP)
+        {
+            char *newDirName = getConfig()->idCardFolder;
+            char lastChar = newDirName[strlen(newDirName) - 1];
+            if (lastChar == '/')
+            {
+                newDirName[strlen(newDirName) - 1] = '\0';
+            }
+            return _opendir(newDirName);
+        }
     }
 
     // Fix for Outrun high scores
@@ -763,6 +812,28 @@ FILE *fopen(const char *restrict pathname, const char *restrict mode)
         return fopen(pathname + 1, mode);
     }
 
+    if (strcmp(getConfig()->idCardFolder, "") != 0)
+    {
+        if (gGrp == GROUP_ID5 || gGrp == GROUP_ID4_EXP || gGrp == GROUP_ID4_JAP)
+        {
+            if (strncmp(pathname, "InidCrd", 7) == 0 || strncmp(pathname, "InidCard", 8) == 0)
+            {
+                char *fmt = "%s%s";
+                char newPathname[MAX_PATH_LENGTH];
+                int newPathnameLen = strlen(getConfig()->idCardFolder) + strlen(pathname) + 1;
+                char lastChar = getConfig()->idCardFolder[strlen(getConfig()->idCardFolder) - 1];
+                if (lastChar != '/')
+                {
+                    fmt = "%s/%s";
+                    newPathnameLen++;
+                }
+
+                snprintf(newPathname, newPathnameLen, fmt, getConfig()->idCardFolder, pathname);
+                return fopen(newPathname, mode);
+            }
+        }
+    }
+
     if (gId == PRIMEVAL_HUNT)
     {
         if (strstr(pathname, "/data/lua/texture/start_stage") != NULL)
@@ -1041,6 +1112,11 @@ ssize_t read(int fd, void *buf, size_t count)
             phRead(fd, buf, count);
             return 1;
         }
+        if ((gId == MJ4_EVO || gId == MJ4_REVG || gId == QUIZ_AXA || gId == QUIZ_AXA_LIVE) && getConfig()->emulateTouchscreen == 1 &&
+            mj4ResponseReady)
+        {
+            return mj4ReadTouchPacket(buf, count);
+        }
         return -1;
     }
 
@@ -1217,6 +1293,11 @@ ssize_t write(int fd, const void *buf, size_t count)
             return driveboardWrite(fd, buf, count);
     }
 
+    if (fd == hooks[SERIAL1] && (gId == MJ4_EVO || gId == MJ4_REVG || gId == QUIZ_AXA || gId == QUIZ_AXA_LIVE))
+    {
+        return mj4WriteTouchPacket(buf, count);
+    }
+
     if ((fd == hooks[SERIAL0] || fd == hooks[SERIAL1]) && getConfig()->emulateHW210CardReader)
     {
         return cardReaderWrite(fd, buf, count);
@@ -1255,16 +1336,20 @@ int ioctl(int fd, unsigned long int request, ...)
 
     if (fd == hooks[SERIAL0] || fd == hooks[SERIAL1])
     {
-        if (request == 0x541b && (gId == R_TUNED) && fd == hooks[SERIAL1])
+        if (request == 0x541b && (gId == R_TUNED || gId == MJ4_REVG || gId == MJ4_EVO) && fd == hooks[SERIAL1])
         {
             uint8_t d = 1;
             memcpy(argp, &d, sizeof(uint8_t));
+        }
+        else if (getConfig()->emulateDriveboard)
+        {
+            return driveBoardioctl(fd, request, argp);
         }
         return 0;
     }
 
     // Replace "eth0" with your interface name set in the config file.
-    if ((gGrp == GROUP_ID4_EXP || gId == INITIALD_5_EXP_20 || gId == INITIALD_5_EXP_20A ) &&
+    if ((gGrp == GROUP_ID4_EXP || gId == INITIALD_5_EXP_20 || gId == INITIALD_5_EXP_20A) &&
         (request == SIOCGIFFLAGS || request == SIOCGIFADDR) && getConfig()->enableNetworkPatches && strcmp(getConfig()->nicName, "") != 0)
     {
         struct ifreq *ifr = (struct ifreq *)argp;
@@ -1389,14 +1474,19 @@ int select(int nfds, fd_set *restrict readfds, fd_set *restrict writefds, fd_set
     int (*_select)(int nfds, fd_set *restrict readfds, fd_set *restrict writefds, fd_set *restrict exceptfds,
                    struct timeval *restrict timeout) = dlsym(RTLD_NEXT, "select");
 
-    if (readfds != NULL && FD_ISSET(hooks[BASEBOARD], readfds))
-    {
-        return baseboardSelect(nfds, readfds, writefds, exceptfds, timeout);
-    }
+    int baseboardFd = hooks[BASEBOARD];
 
-    if (writefds != NULL && FD_ISSET(hooks[BASEBOARD], writefds))
+    if (baseboardFd >= 0 && baseboardFd < nfds)
     {
-        return baseboardSelect(nfds, readfds, writefds, exceptfds, timeout);
+        if (readfds != NULL && FD_ISSET(hooks[BASEBOARD], readfds))
+        {
+            return baseboardSelect(nfds, readfds, writefds, exceptfds, timeout);
+        }
+
+        if (writefds != NULL && FD_ISSET(hooks[BASEBOARD], writefds))
+        {
+            return baseboardSelect(nfds, readfds, writefds, exceptfds, timeout);
+        }
     }
 
     if ((getConfig()->emulateHW210CardReader == 1 || getConfig()->emulateDriveboard == 1) &&

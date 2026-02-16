@@ -15,12 +15,14 @@
 
 #include "blitStretching.h"
 #include "config.h"
+#include "crossHair.h"
 #include "customCursor.h"
 #include "sdlInput.h"
 #include "jvs.h"
 #include "resources/LiberationMono-Regular.h"
 #include "log.h"
 #include "sdlCalls.h"
+#include "wiimoteEvdev.h"
 
 extern uint32_t gId;
 extern int gGrp;
@@ -100,6 +102,7 @@ void startSDL(int *argcp, char **argv)
         log_warn("More than 1 display detected, will use the first one.\n");
 
     const SDL_DisplayMode *displayMode = SDL_GetCurrentDisplayMode(sdlDisplayId[0]);
+    SDL_free(sdlDisplayId);
     if (displayMode == NULL)
     {
         log_error("SDL_GetCurrentDisplayMode Error: %s\n", SDL_GetError());
@@ -188,7 +191,7 @@ void startSDL(int *argcp, char **argv)
 
     initBlitting();
 
-    if (gId != PRIMEVAL_HUNT)
+    if (gId != PRIMEVAL_HUNT && gGrp != GROUP_LGJ)
         SDL_SetWindowResizable(sdlWindow, true);
 
     SDL_ShowWindow(sdlWindow);
@@ -203,7 +206,6 @@ void startSDL(int *argcp, char **argv)
             running = 0;
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
-
         SDL_GL_SwapWindow(sdlWindow);
     }
 
@@ -215,7 +217,12 @@ void startSDL(int *argcp, char **argv)
     if (customCursor)
         setCursor(customCursor);
 
-    if ((gGrp == GROUP_MJ4 || gId == QUIZ_AXA || gId == QUIZ_AXA_LIVE) && strcmp(getConfig()->touchCursor, "") != 0 &&
+    if (getConfig()->enableCrosshairs &&
+         (gGrp == GROUP_HOD4 || gGrp == GROUP_HOD4_TEST || gGrp == GROUP_HOD4_SP || gGrp == GROUP_HOD4_SP_TEST || gGrp == GROUP_RAMBO ||
+          gId == GHOST_SQUAD_EVOLUTION || gId == PRIMEVAL_HUNT))
+        initCrossHairs();
+
+    if ((gId == MJ4_REVG || gId == MJ4_EVO || gId == QUIZ_AXA || gId == QUIZ_AXA_LIVE) && strcmp(getConfig()->touchCursor, "") != 0 &&
         getConfig()->emulateTouchscreen)
         setCursor(touchCursor);
     else if (getConfig()->hideCursor)
@@ -228,7 +235,33 @@ void sdlQuit()
     usleep(50000);
     setSwitch(SYSTEM, BUTTON_TEST, 0);
     usleep(50000);
-    SDL_DestroyWindow(sdlWindow);
+
+    if (TTF_WasInit())
+    {
+        if (font)
+        {
+            TTF_CloseFont(font);
+            font = NULL;
+        }
+        TTF_Quit();
+    }
+    if (fontRenderer)
+    {
+        SDL_DestroyRenderer(fontRenderer);
+        fontRenderer = NULL;
+    }
+
+    if (sdlContext)
+    {
+        SDL_GL_DestroyContext(sdlContext);
+        sdlContext = NULL;
+    }
+
+    if (sdlWindow)
+    {
+        SDL_DestroyWindow(sdlWindow);
+        sdlWindow = NULL;
+    }
     SDL_Quit();
     exit(0);
 }
@@ -238,6 +271,9 @@ void pollEvents()
     SDL_Event event;
     while (SDL_PollEvent(&event))
     {
+        if (event.type == SDL_WIIMOTION_EVENT)
+            processSdlEvent(&event);
+
         switch (event.type)
         {
             case SDL_EVENT_KEY_DOWN:

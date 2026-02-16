@@ -14,8 +14,6 @@ EmulatorConfig config = {0};
 
 extern uint32_t elf_crc;
 
-FILE *configFile = NULL;
-
 #define CONFIG_PATH "lindbergh.ini"
 #define MAX_LINE_LENGTH 1024
 
@@ -47,6 +45,7 @@ static int detectGame(uint32_t elf_crc)
         config.emulateDriveboard = gameData->emulateDriveboard;
         config.emulateMotionboard = gameData->emulateMotionboard;
         config.emulateHW210CardReader = gameData->emulateHW210CardReader;
+        config.emulateIDCardReader = gameData->emulateIDCardReader;
         config.emulateTouchscreen = gameData->emulateTouchscreen;
         config.gameLindberghColour = gameData->gameLindberghColour;
         return 0;
@@ -116,9 +115,12 @@ void setDefaultValues(EmulatorConfig *cfg)
     cfg->emulateDriveboard = 0;
     cfg->emulateMotionboard = 0;
     cfg->emulateHW210CardReader = 0;
+    cfg->emulateIDCardReader = 0;
+    cfg->idCardFileAutoload = 1;
     cfg->emulateTouchscreen = 0;
     strcpy(cfg->cardFile1, "Card_01.crd");
     strcpy(cfg->cardFile2, "Card_02.crd");
+    strcpy(cfg->idCardFolder, "");
     cfg->emulateJVS = 1;
     cfg->fullscreen = 0;
     cfg->lindberghColour = YELLOW;
@@ -187,6 +189,11 @@ void setDefaultValues(EmulatorConfig *cfg)
     cfg->whiteBorderPercentage = 0.02f;
     cfg->blackBorderPercentage = 0.0f;
     cfg->inputMode = 1;
+    cfg->enableCrosshairs = 0;
+    strcpy(cfg->p1CrossHairPath, "");
+    strcpy(cfg->p2CrossHairPath, "");
+    cfg->customCrossHairWidth = 64;
+    cfg->customCrossHairHeight = 64;
 }
 
 static const char *getValue(const IniConfig *ini, const char *sectionName, const char *key)
@@ -326,11 +333,14 @@ void applyIniConfig(EmulatorConfig *config, const IniConfig *ini)
     config->emulateDriveboard = getInt(ini, "Emulation", "EMULATE_DRIVEBOARD", config->emulateDriveboard);
     config->emulateMotionboard = getInt(ini, "Emulation", "EMULATE_MOTIONBOARD", config->emulateMotionboard);
     config->emulateHW210CardReader = getInt(ini, "Emulation", "EMULATE_HW210_CARDREADER", config->emulateHW210CardReader);
+    config->emulateIDCardReader = getInt(ini, "Emulation", "EMULATE_ID_CARDREADER", config->emulateIDCardReader);
     config->emulateTouchscreen = getInt(ini, "Emulation", "EMULATE_TOUCHSCREEN", config->emulateTouchscreen);
 
     // [Cards]
+    config->idCardFileAutoload = getInt(ini, "Cards", "ID_CARDFILE_AUTOLOAD", config->idCardFileAutoload);
     getString(ini, "Cards", "CARDFILE_01", config->cardFile1, MAX_PATH_LENGTH);
     getString(ini, "Cards", "CARDFILE_02", config->cardFile2, MAX_PATH_LENGTH);
+    getString(ini, "Cards", "ID_CARDFOLDER", config->idCardFolder, MAX_PATH_LENGTH);
 
     // [Paths]
     getString(ini, "Paths", "JVS_PATH", config->jvsPath, MAX_PATH_LENGTH);
@@ -368,6 +378,13 @@ void applyIniConfig(EmulatorConfig *config, const IniConfig *ini)
     config->ramboGunsSwitch = getInt(ini, "GameSpecific", "RAMBO_GUNS_SWITCH", config->ramboGunsSwitch);
     config->id5ChineseLanguage = getInt(ini, "GameSpecific", "ID5_CHINESE_LANGUAGE", config->id5ChineseLanguage);
     config->idSteeringPercentageReduction = getFloat(ini, "GameSpecific", "ID_STEERING_REDUCTION_PERCENTAGE", config->idSteeringPercentageReduction);
+
+    // [CrossHairs]
+    config->enableCrosshairs = getInt(ini, "CrossHairs", "ENABLE_CROSSHAIRS", config->enableCrosshairs);
+    getString(ini, "CrossHairs", "P1_CROSSHAIR_PATH", config->p1CrossHairPath, MAX_PATH_LENGTH);
+    getString(ini, "CrossHairs", "P2_CROSSHAIR_PATH", config->p2CrossHairPath, MAX_PATH_LENGTH);
+    config->customCrossHairWidth = getInt(ini, "CrossHairs", "CUSTOM_CROSSHAIRS_WIDTH", config->customCrossHairWidth);
+    config->customCrossHairHeight = getInt(ini, "CrossHairs", "CUSTOM_CROSSHAIRS_HEIGHT", config->customCrossHairHeight);
 
     config->showDebugMessages = getInt(ini, "System", "DEBUG_MSGS", config->showDebugMessages);
     const char *colourRaw = getValue(ini, "System", "LINDBERGH_COLOUR");

@@ -15,6 +15,8 @@ extern uint32_t gId;
 extern int gGrp;
 bool cardReaderInitialized = false;
 
+void (*idWriteFileHeader)(void *) = NULL;
+
 uint8_t cardHeader[] = {0x08, 0x00, 0x00, 0x00, 0x81, 0x00, 0x59, 0xda, 0x00, 0x00, 0x54, 0x4d, 0x50, 0x06, 0x03, 0x23, 0x10, 0x41, 0x62,
                         0xad, 0x00, 0x2b, 0x0b, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x95, 0x71, 0x52, 0x70, 0x00, 0x00,
                         0x00, 0x00, 0xaa, 0xaa, 0xaa, 0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfd, 0xd2};
@@ -242,4 +244,157 @@ void cardReaderSetFd(int serial, int fd, char *fName)
         fclose(crdFile);
         log_info("Cardfile %s created.\n", fName);
     }
+}
+
+
+void idPatchEject()
+{
+    switch (gId)
+    {
+        case INITIALD_4_EXP_REVB:
+        {
+            patchMemoryFromString(0x082939f9, "84"); // tickInsertWait
+            patchMemoryFromString(0x08293a2b, "85");
+            patchMemoryFromString(0x0819251e, "eb"); // reqRead
+        }
+        break;
+        case INITIALD_4_EXP_REVC:
+        {
+            patchMemoryFromString(0x08293aa9, "84"); // tickInsertWait
+            patchMemoryFromString(0x08293adb, "85");
+            patchMemoryFromString(0x081925ce, "eb"); // reqRead
+        }
+        break;
+        case INITIALD_4_EXP_REVD:
+        {
+            patchMemoryFromString(0x08295479, "84"); // tickInsertWait
+            patchMemoryFromString(0x082954ab, "85");
+            patchMemoryFromString(0x0819349e, "eb"); // reqRead
+        }
+        break;
+        case INITIALD_4_REVA:
+        {
+            patchMemoryFromString(0x0828149d, "85"); // tickInsertWait
+            patchMemoryFromString(0x08281603, "85");
+            patchMemoryFromString(0x0817943e, "eb"); // reqRead
+        }
+        break;
+        case INITIALD_4_REVB:
+        {
+            patchMemoryFromString(0x082815c5, "85"); // tickInsertWait
+            patchMemoryFromString(0x0828172b, "85");
+            patchMemoryFromString(0x081793ce, "eb"); // reqRead
+        }
+        break;
+        case INITIALD_4_REVC:
+        {
+            patchMemoryFromString(0x08281ae9, "85"); // tickInsertWait
+            patchMemoryFromString(0x08281c51, "85");
+            patchMemoryFromString(0x0817990c, "eb"); // reqRead
+        }
+        break;
+        case INITIALD_4_REVD:
+        {
+            patchMemoryFromString(0x082833dd, "85"); // tickInsertWait
+            patchMemoryFromString(0x08283543, "85");
+            patchMemoryFromString(0x08179c1c, "eb"); // reqRead
+        }
+        break;
+        case INITIALD_4_REVG:
+        {
+            patchMemoryFromString(0x082a4ae5, "84"); // tickInsertWait
+            patchMemoryFromString(0x082a4b17, "85");
+            patchMemoryFromString(0x08190cbe, "eb"); // reqRead
+        }
+        break;
+        case INITIALD_5_EXP:
+        {
+            patchMemoryFromString(0x083e1eb9, "84"); // tickInsertWait
+            patchMemoryFromString(0x083e1eeb, "85");
+        }
+        break;
+        case INITIALD_5_EXP_20:
+        {
+            patchMemoryFromString(0x083ebd1b, "84"); // tickInsertWait
+            patchMemoryFromString(0x083ebd51, "85");
+        }
+        break;
+        case INITIALD_5_EXP_20A:
+        {
+            patchMemoryFromString(0x083ec07b, "84"); // tickInsertWait
+            patchMemoryFromString(0x083ec0b1, "85");
+        }
+        break;
+        case INITIALD_5_JAP_REVA:
+        {
+            patchMemoryFromString(0x083d92bd, "84"); // tickInsertWait
+            patchMemoryFromString(0x083d92f1, "85");
+        }
+        break;
+        case INITIALD_5_JAP_REVF:
+        {
+            patchMemoryFromString(0x083ec6b9, "84"); // tickInsertWait
+            patchMemoryFromString(0x083ec6eb, "85");
+        }
+    }
+}
+
+void idWriteFileHeaderTram(void *param1)
+{
+    idPatchEject();
+    idWriteFileHeader(param1);
+}
+
+bool idCardFileExists(const char *folderPath, long expectedSize, bool twoDigits)
+{
+    if (folderPath != NULL && strlen(folderPath) > 0)
+    {
+        struct stat buffer;
+        stat(folderPath, &buffer);
+        if (!S_ISDIR(buffer.st_mode))
+        {
+            log_error("ID Card Folder does not exist! Check the config file.");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    char fileName[20];
+    char currentFullPath[1024];
+    char *fmt;
+    int maxCards = 999;
+    char *cardFilename = "InidCrd%03d.crd";
+
+    if (twoDigits)
+    {
+        maxCards = 99;
+        cardFilename = "InidCard%02d.crd";
+    }
+
+    for (int i = 0; i <= maxCards; ++i)
+    {
+        fmt = "%s%s";
+        sprintf(fileName, cardFilename, i);
+        if (folderPath != NULL && strlen(folderPath) > 0)
+        {
+            char lastChar = folderPath[strlen(folderPath) - 1];
+            if (lastChar != '/')
+                fmt = "%s/%s";
+        }
+
+        if (snprintf(currentFullPath, sizeof(currentFullPath), fmt, folderPath, fileName) >= sizeof(currentFullPath))
+        {
+            fprintf(stderr, "Error: Constructed path for '%s' in folder '%s' is too long.\n", fileName, folderPath);
+            continue;
+        }
+
+        struct stat fileStat;
+        if (stat(currentFullPath, &fileStat) == 0)
+        {
+            if (fileStat.st_size == expectedSize)
+            {
+                return true;
+            }
+        }
+    }
+    return false;
 }

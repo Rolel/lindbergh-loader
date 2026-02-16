@@ -82,6 +82,8 @@ typedef struct
 
     int enabled;
     int inUse;
+    int hasFFB;
+    int ffbEffectId;
     double lastAnalogueValue[8];
 
 } Controller;

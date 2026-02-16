@@ -11,6 +11,7 @@
 #include <GL/glext.h>
 #include <sys/stat.h>
 
+#include "cardReader.h"
 #include "config.h"
 #include "resolution.h"
 #include "securityBoard.h"
@@ -30,6 +31,8 @@ extern void (*CPlayer_MainOri)(int);
 extern void *customCursor;
 extern void *touchCursor;
 extern void *blankCursor;
+
+extern void (*idWriteFileHeader)(void *);
 
 int amDongleInit()
 {
@@ -210,6 +213,21 @@ int patchedPuts(char *s)
     int ret = log_game("%s\n", s);
 
     return ret;
+}
+
+extern bool gTriggerInsertKey;
+int idCardSize = 0;
+bool idTwoDigitsCardCount = false;
+
+bool checkTrgOn(int param_1, long param_2)
+{
+    if (param_2 == 0x1000 && (gTriggerInsertKey || getConfig()->idCardFileAutoload))
+    {
+        if (idCardFileExists(getConfig()->idCardFolder, idCardSize, idTwoDigitsCardCount))
+            return true;
+        return false;
+    }
+    return false;
 }
 
 int initPatch()
@@ -576,6 +594,10 @@ int initPatch()
 
             // Set IPs
             hummerSetIPs(0x09c2fe90);
+
+            // Forces FFB command output
+            if (getConfig()->emulateDriveboard)
+                detourFunction(0x080cffb4, stubRetZero);
         }
         break;
         case HUMMER_EXTREME_MDX: // DVP-0083
@@ -641,6 +663,10 @@ int initPatch()
 
             // Set IPs
             hummerSetIPs(0x09c435b0);
+
+            // Forces FFB command output
+            if (getConfig()->emulateDriveboard)
+                detourFunction(0x080d1348, stubRetZero);
         }
         break;
         case HUMMER_SDLX: // DVP-0057
@@ -699,6 +725,10 @@ int initPatch()
 
             // Set IPs
             hummerSetIPs(0x09b30258);
+
+            // Forces FFB command output
+            if (getConfig()->emulateDriveboard)
+                detourFunction(0x082cdd1a, stubRetZero);
         }
         break;
         case INITIALD_4_EXP_REVB:
@@ -766,6 +796,15 @@ int initPatch()
                 setVariable(0x08235a4d, 0x7f000001); // 127.0.0.1
                 setVariable(0x08235a5d, ipSeat1);
                 setVariable(0x08235a55, ipSeat2);
+            }
+
+            if (getConfig()->emulateIDCardReader)
+            {
+                patchMemoryFromString(0x0820716e, "48d479"); // RealCard --> FileCard
+                patchMemoryFromString((size_t)findStaticFnAddr("_ZN11cFileCardIF9emulationEv") + 0x21, "74");
+                detourFunction((size_t)findStaticFnAddr("_ZN11_sInterface10checkTrgOnENS_11PORT_NUMBEREm"), checkTrgOn);
+                idCardSize = 1824;
+                idTwoDigitsCardCount = false;
             }
         }
         break;
@@ -835,6 +874,16 @@ int initPatch()
                 setVariable(0x08235b2d, ipSeat1);
                 setVariable(0x08235b25, ipSeat2);
             }
+
+            // Patch for Card Reader to use files instead
+            if (getConfig()->emulateIDCardReader)
+            {
+                patchMemoryFromString(0x0820722e, "c8d179"); // RealCard --> FileCard
+                patchMemoryFromString((size_t)findStaticFnAddr("_ZN11cFileCardIF9emulationEv") + 0x21, "74");
+                detourFunction((size_t)findStaticFnAddr("_ZN11_sInterface10checkTrgOnENS_11PORT_NUMBEREm"), checkTrgOn);
+                idCardSize = 1824;
+                idTwoDigitsCardCount = false;
+            }
         }
         break;
         case INITIALD_4_EXP_REVD:
@@ -903,6 +952,16 @@ int initPatch()
                 setVariable(0x08236c5d, ipSeat1);
                 setVariable(0x08236c55, ipSeat2);
             }
+
+            // Patch for Card Reader to use files instead
+            if (getConfig()->emulateIDCardReader)
+            {
+                patchMemoryFromString(0x082082e8, "88fa79"); // RealCard --> FileCard
+                patchMemoryFromString((size_t)findStaticFnAddr("_ZN11cFileCardIF9emulationEv") + 0x21, "74");
+                detourFunction((size_t)findStaticFnAddr("_ZN11_sInterface10checkTrgOnENS_11PORT_NUMBEREm"), checkTrgOn);
+                idCardSize = 1824;
+                idTwoDigitsCardCount = false;
+            }
         }
         break;
         case INITIALD_4_REVA:
@@ -959,6 +1018,16 @@ int initPatch()
             }
             patchMemoryFromString(0x08548cb3, "31C090"); // cgCreateProgram args argument to 0;
             detourFunction(0x0825637a, stubRetOne);      // isExistNewerSource (forces shader recompilation)
+
+            // Patch for Card Reader to use files instead
+            if (getConfig()->emulateIDCardReader)
+            {
+                patchMemoryFromString(0x081f1e27, "28c777"); // RealCard --> FileCard
+                patchMemoryFromString((size_t)findStaticFnAddr("_ZN11cFileCardIF9emulationEv") + 0x21, "74");
+                detourFunction((size_t)findStaticFnAddr("_ZN11_sInterface10checkTrgOnENS_11PORT_NUMBEREm"), checkTrgOn);
+                idCardSize = 1824;
+                idTwoDigitsCardCount = true;
+            }
         }
         break;
         case INITIALD_4_REVB:
@@ -1015,6 +1084,16 @@ int initPatch()
             }
             patchMemoryFromString(0x08548ef3, "31C090"); // cgCreateProgram args argument to 0;
             detourFunction(0x0825653a, stubRetOne);      // isExistNewerSource (forces shader recompilation)
+
+            // Patch for Card Reader to use files instead
+            if (getConfig()->emulateIDCardReader)
+            {
+                patchMemoryFromString(0x081f1f67, "e8c977"); // RealCard --> FileCard
+                patchMemoryFromString((size_t)findStaticFnAddr("_ZN11cFileCardIF9emulationEv") + 0x21, "74");
+                detourFunction((size_t)findStaticFnAddr("_ZN11_sInterface10checkTrgOnENS_11PORT_NUMBEREm"), checkTrgOn);
+                idCardSize = 1824;
+                idTwoDigitsCardCount = true;
+            }
         }
         break;
         case INITIALD_4_REVC:
@@ -1071,6 +1150,16 @@ int initPatch()
             }
             patchMemoryFromString(0x08551763, "31C090"); // cgCreateProgram args argument to 0;
             detourFunction(0x08256ff4, stubRetOne);      // isExistNewerSource (forces shader recompilation)
+
+            // Patch for Card Reader to use files instead
+            if (getConfig()->emulateIDCardReader)
+            {
+                patchMemoryFromString(0x081f27be, "485278"); // RealCard --> FileCard
+                patchMemoryFromString((size_t)findStaticFnAddr("_ZN11cFileCardIF9emulationEv") + 0x21, "74");
+                detourFunction((size_t)findStaticFnAddr("_ZN11_sInterface10checkTrgOnENS_11PORT_NUMBEREm"), checkTrgOn);
+                idCardSize = 1824;
+                idTwoDigitsCardCount = false;
+            }
         }
         break;
         case INITIALD_4_REVD:
@@ -1127,6 +1216,16 @@ int initPatch()
             }
             patchMemoryFromString(0x0854ee03, "31C090"); // cgCreateProgram args argument to 0;
             detourFunction(0x08257470, stubRetOne);      // isExistNewerSource (forces shader recompilation)
+
+            // Patch for Card Reader to use files instead
+            if (getConfig()->emulateIDCardReader)
+            {
+                patchMemoryFromString(0x081f2c2e, "e82878"); // RealCard --> FileCard
+                patchMemoryFromString((size_t)findStaticFnAddr("_ZN11cFileCardIF9emulationEv") + 0x21, "74");
+                detourFunction((size_t)findStaticFnAddr("_ZN11_sInterface10checkTrgOnENS_11PORT_NUMBEREm"), checkTrgOn);
+                idCardSize = 1824;
+                idTwoDigitsCardCount = false;
+            }
         }
         break;
         case INITIALD_4_REVG:
@@ -1183,6 +1282,17 @@ int initPatch()
             }
             patchMemoryFromString(0x08588f73, "31C090"); // cgCreateProgram args argument to 0;
             detourFunction(0x08271cec, stubRetOne);      // isExistNewerSource (forces shader recompilation)
+
+            // Patch for Card Reader to use files instead
+            if (getConfig()->emulateIDCardReader)
+            {
+                patchMemoryFromString(0x0820a911, "a8a07c"); // RealCard --> FileCard
+                patchMemoryFromString(0x081909a3, "eb");     // Fixes crash in findCardFiles
+                patchMemoryFromString((size_t)findStaticFnAddr("_ZN11cFileCardIF9emulationEv") + 0x21, "74");
+                detourFunction((size_t)findStaticFnAddr("_ZN11_sInterface10checkTrgOnENS_11PORT_NUMBEREm"), checkTrgOn);
+                idCardSize = 1828;
+                idTwoDigitsCardCount = false;
+            }
         }
         break;
         case INITIALD_5_EXP:
@@ -1241,6 +1351,17 @@ int initPatch()
             detourFunction(0x08389544, stubRetOne); // isExistNewerSource
             detourFunction(0x0807b370, gl_XGetProcAddressARB);
             patchMemoryFromString(0x08744f2e, "00"); // Fix cutscenes
+
+            // Patch for Card Reader to use files instead
+            if (getConfig()->emulateIDCardReader)
+            {
+                patchMemoryFromString(0x0828573a, "489c9b"); // RealCard --> FileCard
+                patchMemoryFromString(0x081cf8c3, "eb");     // Fixes crash in findCardFiles
+                patchMemoryFromString((size_t)findStaticFnAddr("_ZN11cFileCardIF9emulationEv") + 0x21, "74");
+                detourFunction((size_t)findStaticFnAddr("_ZN11_sInterface10checkTrgOnENS_11PORT_NUMBEREm"), checkTrgOn);
+                idCardSize = 1354;
+                idTwoDigitsCardCount = false;
+            }
         }
         break;
         case INITIALD_5_EXP_20:
@@ -1318,6 +1439,17 @@ int initPatch()
                 }
                 setVariable(0x0833e2e3, ipSeat1);
                 setVariable(0x0833e2db, ipSeat2);
+            }
+
+            // Patch for Card Reader to use files instead
+            if (getConfig()->emulateIDCardReader)
+            {
+                patchMemoryFromString(0x082923ad, "48519e"); // RealCard --> FileCard 089e5144
+                patchMemoryFromString(0x081d6ae3, "eb");     // Fixes crash in findCardFiles
+                patchMemoryFromString((size_t)findStaticFnAddr("_ZN11cFileCardIF9emulationEv") + 0x21, "74");
+                detourFunction((size_t)findStaticFnAddr("_ZN11_sInterface10checkTrgOnENS_11PORT_NUMBEREm"), checkTrgOn);
+                idCardSize = 1354;
+                idTwoDigitsCardCount = false;
             }
             if (getConfig()->id5ChineseLanguage)
             {
@@ -1402,6 +1534,17 @@ int initPatch()
                 setVariable(0x0833e473, ipSeat1);
                 setVariable(0x0833e46b, ipSeat2);
             }
+
+            // Patch for Card Reader to use files instead
+            if (getConfig()->emulateIDCardReader)
+            {
+                patchMemoryFromString(0x0829254d, "88539e"); // RealCard --> FileCard 089e5144
+                patchMemoryFromString(0x081d6c83, "eb");     // Fixes crash in findCardFiles
+                patchMemoryFromString((size_t)findStaticFnAddr("_ZN11cFileCardIF9emulationEv") + 0x21, "74");
+                detourFunction((size_t)findStaticFnAddr("_ZN11_sInterface10checkTrgOnENS_11PORT_NUMBEREm"), checkTrgOn);
+                idCardSize = 1354;
+                idTwoDigitsCardCount = false;
+            }
             if (getConfig()->id5ChineseLanguage)
             {
                 securityBoardSetDipSwitch(1, 1);
@@ -1465,6 +1608,17 @@ int initPatch()
             detourFunction(0x08388cb4, stubRetOne); // isExistNewerSource
             detourFunction(0x0807b370, gl_XGetProcAddressARB);
             patchMemoryFromString(0x0874433e, "00"); // Fix cutscenes
+
+            // Patch for Card Reader to use files instead
+            if (getConfig()->emulateIDCardReader)
+            {
+                patchMemoryFromString(0x0828471a, "889b9b"); // RealCard --> FileCard 089e5144
+                patchMemoryFromString(0x081ce9a3, "eb");     // Fixes crash in findCardFiles
+                patchMemoryFromString((size_t)findStaticFnAddr("_ZN11cFileCardIF9emulationEv") + 0x21, "74");
+                detourFunction((size_t)findStaticFnAddr("_ZN11_sInterface10checkTrgOnENS_11PORT_NUMBEREm"), checkTrgOn);
+                idCardSize = 1354;
+                idTwoDigitsCardCount = false;
+            }
         }
         break;
         case INITIALD_5_JAP_REVC: // ID5 - DVP-0070C
@@ -1523,6 +1677,17 @@ int initPatch()
             detourFunction(0x08389594, stubRetOne); // isExistNewerSource
             detourFunction(0x0807b370, gl_XGetProcAddressARB);
             patchMemoryFromString(0x08744d5e, "00"); // Fix cutscenes
+
+            // Patch for Card Reader to use files instead
+            if (getConfig()->emulateIDCardReader)
+            {
+                patchMemoryFromString(0x0828575a, "a8a5"); // RealCard --> FileCard 089e5144
+                patchMemoryFromString(0x081cf903, "eb");   // Fixes crash in findCardFiles
+                patchMemoryFromString((size_t)findStaticFnAddr("_ZN11cFileCardIF9emulationEv") + 0x21, "74");
+                detourFunction((size_t)findStaticFnAddr("_ZN11_sInterface10checkTrgOnENS_11PORT_NUMBEREm"), checkTrgOn);
+                idCardSize = 1354;
+                idTwoDigitsCardCount = false;
+            }
         }
         break;
         case INITIALD_5_JAP_REVF: // ID5 - DVP-0070F
@@ -1588,6 +1753,17 @@ int initPatch()
             detourFunction(0x08397aa4, stubRetOne); // isExistNewerSource
             detourFunction(0x0807b3bc, gl_XGetProcAddressARB);
             patchMemoryFromString(0x0875e1ae, "00"); // Fix cutscenes
+
+            // Patch for Card Reader to use files instead
+            if (getConfig()->emulateIDCardReader)
+            {
+                patchMemoryFromString(0x08292860, "28f29d"); // RealCard --> FileCard 089e5144
+                patchMemoryFromString(0x081d7023, "eb");     // Fixes crash in findCardFiles
+                patchMemoryFromString((size_t)findStaticFnAddr("_ZN11cFileCardIF9emulationEv") + 0x21, "74");
+                detourFunction((size_t)findStaticFnAddr("_ZN11_sInterface10checkTrgOnENS_11PORT_NUMBEREm"), checkTrgOn);
+                idCardSize = 1354;
+                idTwoDigitsCardCount = false;
+            }
         }
         break;
         case LETS_GO_JUNGLE:

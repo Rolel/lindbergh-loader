@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.2]
+### Added
+    - Virtual Card file support for ID4 and ID5 (read the documentation).
+    - Show / Hide crosshairs in parts of games like HOD4, HOD-SP and RAMBO should be hidden.
+    - WiiRemote support for lightgun games. (Needs Testing)
+    - Custom crosshairs for 2 players,rendered directly on-screen rather than replacing mouse cursor.
+    - Preliminary Forcefeedback support with game controllers. (No Steering wheels yet)
+    - Touch screen support for MJ4 and AxA games.
+### Fixed
+    - Patched Outrun ELF at original resolution would not get fixed.
+    - Possible memory leak (Still nothing major, ABC has its own memory leaks).
+    - Fixed a bug in the resolution patch for 2Spicy.
+
 ## [2.1.1]
 ### Added
     - HOD4 Boss battle targets should be fine now.

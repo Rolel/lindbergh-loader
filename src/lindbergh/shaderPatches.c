@@ -157,6 +157,10 @@ char *replaceInBlock(char *source, SearchReplace *searchReplace, int searchRepla
         char *new_result = replaceSubstring(result, start_index, end_index, target, replacement);
         if (new_result != NULL)
         {
+            if (result != source)
+            {
+                free(result);
+            }
             result = new_result;
         }
     }
@@ -328,8 +332,15 @@ void gsEvoElfShaderPatcher()
 
         newProgram = replaceInBlock(tmpProgram, gsevoElf, gsevoElfCount, "", "");
 
+        char *prevProgram = newProgram;
         newProgram = replaceInBlock(newProgram, gsevoElfMesa, gsevoElfCountMesa, "", "");
+        if (prevProgram != tmpProgram && prevProgram != newProgram)
+            free(prevProgram);
+
+        prevProgram = newProgram;
         newProgram = replaceInBlock(newProgram, gsevoSet1, gsevoSetCount1, "", "");
+        if (prevProgram != tmpProgram && prevProgram != newProgram)
+            free(prevProgram);
 
         int newProgramLen = strlen(newProgram);
 
@@ -342,6 +353,9 @@ void gsEvoElfShaderPatcher()
         }
 
         memcpy((void *)(size_t)gsevoElfShaderOffsets[i].startOffset, newProgram, newProgramLen);
+
+        if (newProgram != tmpProgram)
+            free(newProgram);
     }
 }
 
@@ -419,13 +433,18 @@ void srtvElfShaderPatcher()
 
         cleanShaderString(newProgram);
 
+        char *prevProgram = newProgram;
         newProgram = replaceInBlock(newProgram, srtvElf2, srtvElfCount2, "", "");
+        if (prevProgram != tmpProgram && prevProgram != newProgram)
+            free(prevProgram);
 
         int newProgramLen = strlen(newProgram);
 
         newProgram[newProgramLen] = '\0';
 
         memcpy((void *)(size_t)srtvElfShaderOffsets[i].startOffset, newProgram, newProgramLen);
+        if (newProgram != tmpProgram)
+            free(newProgram);
     }
 }
 
@@ -464,28 +483,23 @@ char *cgGetProgramString(char *program, int e)
  */
 void gl_ProgramStringARB(int target, int program_fmt, int program_len, char *program)
 {
-    char *newProgram;
+    char *newProgram = program;
+    char *program_to_free = NULL;
     int newProgramLen;
     void *addr = __builtin_return_address(0);
 
-    if(gId ==  GHOST_SQUAD_EVOLUTION)
+    if (gId == GHOST_SQUAD_EVOLUTION)
     {
         if (addr == (void *)0x8179fab)
         {
             newProgram = replaceInBlock(program, gsevoSet1, gsevoSetCount1, "", "");
-            int newProgramLen = strlen(newProgram);
-            program = newProgram;
-            program_len = newProgramLen;
         }
     }
-    else if(gGrp == GROUP_LGJ)
+    else if (gGrp == GROUP_LGJ)
     {
         newProgram = replaceInBlock(program, lgjCompiledShadersPatch, lgjCompiledShadersPatchCount, "", "");
-        newProgramLen = strlen(newProgram);
-        program = newProgram;
-        program_len = newProgramLen;
     }
-    else if(gGrp == GROUP_ABC)
+    else if (gGrp == GROUP_ABC)
     {
         if (target == GL_VERTEX_PROGRAM_ARB)
         {
@@ -495,11 +509,8 @@ void gl_ProgramStringARB(int target, int program_fmt, int program_len, char *pro
         {
             newProgram = replaceInBlock(program, abcFsMesa, abcFsMesaCount, "", "");
         }
-        newProgramLen = strlen(newProgram);
-        program = newProgram;
-        program_len = newProgramLen;
     }
-    else if(gGrp == GROUP_OUTRUN)
+    else if (gGrp == GROUP_OUTRUN)
     {
         if (target == GL_VERTEX_PROGRAM_ARB)
         {
@@ -517,9 +528,6 @@ void gl_ProgramStringARB(int target, int program_fmt, int program_len, char *pro
             else
                 newProgram = replaceInBlock(program, orFsMesa, orFsMesaCount, "", "");
         }
-        newProgramLen = strlen(newProgram);
-        program = newProgram;
-        program_len = newProgramLen;
     }
     else if (gGrp == GROUP_VF5)
     {
@@ -531,7 +539,10 @@ void gl_ProgramStringARB(int target, int program_fmt, int program_len, char *pro
                 if (gId == VIRTUA_FIGHTER_5_FINAL_SHOWDOWN_REVA || gId == VIRTUA_FIGHTER_5_FINAL_SHOWDOWN_REVB ||
                     gId == VIRTUA_FIGHTER_5_FINAL_SHOWDOWN_REVB_6000)
                 {
+                    char *prevProgram = newProgram;
                     newProgram = replaceInBlock(newProgram, vf5VsAtifs, vf5VsAtifsCount, "", "");
+                    if (prevProgram != program && prevProgram != newProgram)
+                        free(prevProgram);
                 }
             }
             else
@@ -546,9 +557,6 @@ void gl_ProgramStringARB(int target, int program_fmt, int program_len, char *pro
             else
                 newProgram = replaceInBlock(program, vf5FsMesa, vf5FsMesaCount, "", "");
         }
-        newProgramLen = strlen(newProgram);
-        program = newProgram;
-        program_len = newProgramLen;
     }
     else if (gId == R_TUNED)
     {
@@ -560,9 +568,6 @@ void gl_ProgramStringARB(int target, int program_fmt, int program_len, char *pro
         {
             newProgram = replaceInBlock(program, rtunedFsMesa, rtunedFsMesaCount, "", "");
         }
-        newProgramLen = strlen(newProgram);
-        program = newProgram;
-        program_len = newProgramLen;
     }
     else if (gGrp == GROUP_MJ4)
     {
@@ -574,11 +579,13 @@ void gl_ProgramStringARB(int target, int program_fmt, int program_len, char *pro
         {
             newProgram = replaceInBlock(program, mj4FsMesa, mj4FsMesaCount, "", "");
         }
-        newProgramLen = strlen(newProgram);
-        program = newProgram;
-        program_len = newProgramLen;
     }
-    glProgramStringARB(target, program_fmt, program_len, program);
+
+    if (newProgram != program)
+        program_to_free = newProgram;
+
+    newProgramLen = strlen(newProgram);
+    glProgramStringARB(target, program_fmt, newProgramLen, newProgram);
 
     if (gGrp == GROUP_VF5)
     {
@@ -587,12 +594,11 @@ void gl_ProgramStringARB(int target, int program_fmt, int program_len, char *pro
             int err = glGetError();
             if (err == 1282)
             {
-                char *newProgram;
-                newProgram = replaceInBlock(program, vf5VsAti2, vf5VsAtiCount2, "", "");
-                int newProgramLen = strlen(newProgram);
-                program = newProgram;
-                program_len = newProgramLen;
-                glProgramStringARB(target, program_fmt, program_len, program);
+                char *newProgram2 = replaceInBlock(newProgram, vf5VsAti2, vf5VsAtiCount2, "", "");
+                int newProgramLen2 = strlen(newProgram2);
+                glProgramStringARB(target, program_fmt, newProgramLen2, newProgram2);
+                if (newProgram2 != newProgram)
+                    free(newProgram2);
             }
         }
     }
@@ -616,9 +622,9 @@ void gl_ProgramStringARB(int target, int program_fmt, int program_len, char *pro
             FILE *f;
             sprintf(filename, "%s/Error-%d.prg", dir_only, idxError);
             // sprintf(filename, "%s/%s", dir_only, fname);
-            printf("Size: %d\n", program_len);
+            printf("Size: %d\n", newProgramLen);
             f = fopen(filename, "w+");
-            fwrite(program, sizeof(char), program_len, f);
+            fwrite(newProgram, sizeof(char), newProgramLen, f);
             fclose(f);
             idxError++;
         }
@@ -638,6 +644,8 @@ void gl_ProgramStringARB(int target, int program_fmt, int program_len, char *pro
             }
         }
     }
+    if (program_to_free)
+        free(program_to_free);
     return;
 }
 
@@ -710,16 +718,20 @@ char *cgCreateProgram(uint32_t context, int program_type, const char *program, i
 
 void gl_ShaderSourceARB(GLhandleARB shaderObj, GLsizei count, const GLcharARB **const string, const GLint *length)
 {
-    if(gGrp != GROUP_HUMMER && gId != SEGA_RACE_TV)
+    if (gGrp != GROUP_HUMMER && gId != SEGA_RACE_TV)
     {
         glShaderSourceARB(shaderObj, count, string, length);
         return;
     }
 
-    char *newProgram = malloc(250000);
+    char *program_to_free = NULL;
+    const GLcharARB *final_string = *string;
+    GLint final_length = (length ? *length : 0);
 
-    if(gId == SEGA_RACE_TV)
+    if (gId == SEGA_RACE_TV)
     {
+        char *newProgram = NULL;
+        char tmp[250000];
         void *addr = __builtin_return_address(0);
         if (addr <= (void *)0x82fd823)
         {
@@ -729,35 +741,43 @@ void gl_ShaderSourceARB(GLhandleARB shaderObj, GLsizei count, const GLcharARB **
         {
             if (getConfig()->GPUVendor != NVIDIA_GPU)
             {
-                sprintf(newProgram, "#version 120\r\n%s", *string);
-                newProgram = replaceInBlock(newProgram, srtvVsMesa, srtvVsMesaCount, "", "");
+                sprintf(tmp, "#version 120\r\n%s", *string);
+                newProgram = replaceInBlock(tmp, srtvVsMesa, srtvVsMesaCount, "", "");
             }
             else
             {
-                sprintf(newProgram, "%s", *string);
-                newProgram = replaceInBlock(newProgram, srtvVsNvidia, srtvVsNvidiaCount, "", "");
+                sprintf(tmp, "%s", *string);
+                newProgram = replaceInBlock(tmp, srtvVsNvidia, srtvVsNvidiaCount, "", "");
             }
         }
         else if (addr == (void *)0x084bc06b)
         {
             if (getConfig()->GPUVendor != NVIDIA_GPU)
             {
-                sprintf(newProgram, "#version 120\r\n%s", *string);
-                newProgram = replaceInBlock(newProgram, srtvFsMesa, srtvFsMesaCount, "", "");
+                sprintf(tmp, "#version 120\r\n%s", *string);
+                newProgram = replaceInBlock(tmp, srtvFsMesa, srtvFsMesaCount, "", "");
             }
             else
             {
                 newProgram = strdup(*string);
             }
         }
+
+        if (newProgram)
+        {
+            final_string = newProgram;
+            program_to_free = newProgram;
+        }
     }
     else if (gGrp == GROUP_HUMMER)
     {
         void *addr = __builtin_return_address(0);
-        if ((addr != (void *)0x830a501) && (addr != (void *)0x830a485) && (addr != (void *)0x08319841) && (addr != (void *)0x083197c5) &&
-            (addr != (void *)0x83af939) && (addr != (void *)0x83af9b3) && (addr != (void *)0x83b0515) && (addr != (void *)0x83b058f))
+        if ((addr != (void *)0x830a501) && (addr != (void *)0x830a485) && (addr != (void *)0x08319841) &&
+            (addr != (void *)0x083197c5) && (addr != (void *)0x83af939) && (addr != (void *)0x83af9b3) &&
+            (addr != (void *)0x83b0515) && (addr != (void *)0x83b058f))
         {
-            sprintf(newProgram, "%s", hummerShaderFilesToMod[hummerExtremeShaderFileIndex].shaderBuffer);
+            final_string = strdup(hummerShaderFilesToMod[hummerExtremeShaderFileIndex].shaderBuffer);
+            program_to_free = (char *)final_string;
         }
         else
         {
@@ -765,26 +785,26 @@ void gl_ShaderSourceARB(GLhandleARB shaderObj, GLsizei count, const GLcharARB **
             return;
         }
     }
-    else 
+    else
     {
         glShaderSourceARB(shaderObj, count, string, length);
         return;
     }
 
-    const char *newString = malloc(250000);
-    memset((void *)newString, '\0', 250000);
-    newString = strdup(newProgram);
     if (length != NULL)
     {
-        const int newLength = hummerShaderFilesToMod[hummerExtremeShaderFileIndex].shaderBufferSize;
-        glShaderSourceARB(shaderObj, count, &newString, &newLength);
+        final_length = strlen(final_string);
+        glShaderSourceARB(shaderObj, count, &final_string, &final_length);
     }
     else
     {
-        glShaderSourceARB(shaderObj, count, &newString, length);
+        glShaderSourceARB(shaderObj, count, &final_string, NULL);
     }
-    free((void *)newString);
-    free(newProgram);
+
+    if (program_to_free)
+    {
+        free(program_to_free);
+    }
 }
 
 /**
@@ -958,7 +978,9 @@ void glBindTexture(GLenum target, GLuint texture)
 
 int parseCgcArgs(const char *input, const char ***compilerArgs, const char **outputFileName)
 {
-    char *token = strtok(strdup(input), " ");
+    char *inputCopy = strdup(input);
+    char *toFree = inputCopy;
+    char *token = strtok(inputCopy, " ");
     char **args = malloc(256 * sizeof(char *));
     int count = 0;
     char *profile;
@@ -992,6 +1014,7 @@ int parseCgcArgs(const char *input, const char ***compilerArgs, const char **out
     }
     (*compilerArgs)[argIndex] = NULL;
     free(args);
+    free(toFree);
     if (strcmp(profile, "vp40") == 0)
     {
         return 6150;
@@ -1021,7 +1044,7 @@ char *findLibCg()
     if (currentDir != NULL)
     {
         size_t pathLen = strlen(currentDir) + strlen("/libCg.so") + 1;
-        pathsToCheck[3] = malloc(pathLen);
+        pathsToCheck[4] = malloc(pathLen);
         if (pathsToCheck[4] != NULL)
         {
             snprintf(pathsToCheck[4], pathLen, "%s/%s", currentDir, "libCg.so");
@@ -1228,6 +1251,7 @@ int compileWithCGC(char *command)
 
     _cgDestroyProgram(program);
     _cgDestroyContext(ctx);
+    free((void *)*compilerArgs);
     return 0;
 }
 

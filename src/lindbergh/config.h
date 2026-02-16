@@ -251,9 +251,12 @@ typedef struct
     int emulateDriveboard;
     int emulateMotionboard;
     int emulateHW210CardReader;
+    int emulateIDCardReader;
+    int idCardFileAutoload;
     int emulateTouchscreen;
     char cardFile1[MAX_PATH_LENGTH];
     char cardFile2[MAX_PATH_LENGTH];
+    char idCardFolder[MAX_PATH_LENGTH];
     int emulateJVS;
     int fullscreen;
     char eepromPath[MAX_PATH_LENGTH];
@@ -327,6 +330,11 @@ typedef struct
     float whiteBorderPercentage;
     float blackBorderPercentage;
     int borderEnabled;
+    int enableCrosshairs;
+    char p1CrossHairPath[MAX_PATH_LENGTH];
+    char p2CrossHairPath[MAX_PATH_LENGTH];
+    int customCrossHairWidth;
+    int customCrossHairHeight;
 } EmulatorConfig;
 
 int initConfig(const char* configFilePath);

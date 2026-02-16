@@ -13,6 +13,7 @@
 #include "blitStretching.h"
 #include "border.h"
 #include "config.h"
+#include "crossHair.h"
 #include "fpsLimiter.h"
 #include "resolution.h"
 #include "sdlCalls.h"
@@ -40,6 +41,8 @@ extern SDL_Renderer *fontRenderer;
 extern TTF_Font *font;
 int penX = 0;
 int penY = 0;
+
+char windowTitle[512];
 
 void FGAPIENTRY glutInit(int *argcp, char **argv)
 {
@@ -87,6 +90,9 @@ void FGAPIENTRY glutSwapBuffers(void)
         }
     }
 
+    if ((p1CrossHairInitialized || p2CrossHairInitialized) && gId != GHOST_SQUAD_EVOLUTION)
+        renderCrosshairs();
+
     blitStretch();
 
     if (config->borderEnabled)
@@ -97,9 +103,11 @@ void FGAPIENTRY glutSwapBuffers(void)
     if (config->fpsLimiter)
         frameTiming();
 
-    char windowTitle[512];
     sprintf(windowTitle, "%s - FPS: %.2f", sdlGameTitle, calculateFps());
     SDL_SetWindowTitle(sdlWindow, windowTitle);
+
+    if (gId == MJ4_REVG || gId == MJ4_EVO)
+        mj4TouchHolding();
 }
 
 int FGAPIENTRY glutGet(GLenum type)
@@ -336,6 +344,12 @@ void glutBitmapCharacter(void *fontID, int character)
 
     int pitch = (glyph->w + 7) / 8;
     uint8_t *bitmap = malloc(pitch * glyph->h);
+    if (!bitmap)
+    {
+        printf("Failed to allocate memory for bitmap\n");
+        SDL_DestroySurface(glyph);
+        return;
+    }
     convertSurfaceTo1Bit(glyph, bitmap, pitch);
 
     GLint swbytes, lsbfirst, rowlen, skiprows, skippix, align;

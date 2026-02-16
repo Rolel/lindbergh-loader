@@ -12,7 +12,7 @@ void createDefaultIni(const char *filePath)
         return;
     }
 
-    EmulatorConfig defaults;
+    EmulatorConfig defaults = {0};
     setDefaultValues(&defaults);
 
     fprintf(file, "# SEGA Lindbergh Emulator Configuration File\n");
@@ -58,12 +58,16 @@ void createDefaultIni(const char *filePath)
     fprintf(file, "# If this is set to false, then the emulator will route the traffic to one of the serial ports\n");
     fprintf(file, "EMULATE_MOTIONBOARD = AUTO\n\n");
     fprintf(file, "# Set to true to enable card reader emulation in Virtua Tennis 3 or R-Tuned\nEMULATE_HW210_CARDREADER = AUTO\n\n");
+    fprintf(file, "# Set to true to enable card reader emulation in ID4 and ID5 file \nEMULATE_ID_CARD READER = AUTO\n\n");
     fprintf(file, "# Set to true to enable touchscreen emulation  with the mouse\nEMULATE_TOUCHSCREEN = AUTO\n\n");
 
     // [Cards]
     fprintf(file, "[Cards]\n");
+    fprintf(file, "# Set to false to use a button to insert a card manually in ID4 or ID5.\n");
+    fprintf(file, "# Or true to make the loader auto load\nID_CARDFILE_AUTOLOAD = %s\n\n", defaults.idCardFileAutoload ? "true" : "false");
     fprintf(file, "# Card File for reader 1 in VT3 or R-Tuned\nCARDFILE_01 = \"%s\"\n\n", defaults.cardFile1);
     fprintf(file, "# Card File for reader 2 in VT3 or R-Tuned\nCARDFILE_02 = \"%s\"\n\n", defaults.cardFile2);
+    fprintf(file, "# Folder for ID Card files\nID_CARDFOLDER = \"%s\"\n\n", defaults.idCardFolder);
 
     // [Paths]
     fprintf(file, "[Paths]\n");
@@ -101,7 +105,7 @@ void createDefaultIni(const char *filePath)
     fprintf(file, "CUSTOM_CURSOR = \"%s\"\n\n", defaults.customCursor);
     fprintf(file, "# Set the width of the custom cursor\nCUSTOM_CURSOR_WIDTH = %d\n\n", defaults.customCursorWidth);
     fprintf(file, "# Set the height of the custom cursor\nCUSTOM_CURSOR_HEIGHT = %d\n\n", defaults.customCursorHeight);
-    fprintf(file, "# Set a custom cursor for the touch screen in Primeval Hunt\n");
+    fprintf(file, "# Set a custom cursor for the touch screen in Primeval Hunt, MJ4 Games and AxA Games\n");
     fprintf(file, "TOUCH_CURSOR = \"%s\"\n\n", defaults.touchCursor);
     fprintf(file, "# Set the width of the custom cursor\nTOUCH_CURSOR_WIDTH = %d\n\n", defaults.touchCursorWidth);
     fprintf(file, "# Set the height of the custom cursor\nTOUCH_CURSOR_HEIGHT = %d\n\n", defaults.touchCursorHeight);
@@ -126,6 +130,18 @@ void createDefaultIni(const char *filePath)
     fprintf(file, "ID5_CHINESE_LANGUAGE = %s\n\n", defaults.id5ChineseLanguage ? "true" : "false");
     fprintf(file, "# Set the percentage of the steering wheel travel reduction\n");
     fprintf(file, "ID_STEERING_REDUCTION_PERCENTAGE = %.1f\n\n", defaults.idSteeringPercentageReduction);
+
+    fprintf(file, "[CrossHairs]\n");
+    fprintf(file, "# Set to true to enable Crosshairs even when using GunLights\n");
+    fprintf(file, "ENABLE_CROSSHAIRS = %s\n\n", defaults.enableCrosshairs ? "true" : "false");
+    fprintf(file, "# Set the Crosshair image from a PNG file for Player 1\n");
+    fprintf(file, "P1_CROSSHAIR_PATH = \"%s\"\n\n", defaults.p1CrossHairPath);
+    fprintf(file, "# Set the Crosshair image from a PNG file for Player 2\n");
+    fprintf(file, "P2_CROSSHAIR_PATH = \"%s\"\n\n", defaults.p2CrossHairPath);
+    fprintf(file, "# Set the width of the Crosshair image\n");
+    fprintf(file, "CUSTOM_CROSSHAIRS_WIDTH = %d\n\n", defaults.customCrossHairWidth);
+    fprintf(file, "# Set the height of the Crosshair image\n");
+    fprintf(file, "CUSTOM_CROSSHAIRS_HEIGHT = %d\n\n", defaults.customCrossHairHeight);
 
     // [System]
     fprintf(file, "[System]\n");
