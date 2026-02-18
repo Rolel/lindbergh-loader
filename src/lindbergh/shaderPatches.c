@@ -976,10 +976,10 @@ void glBindTexture(GLenum target, GLuint texture)
     }
 }
 
-int parseCgcArgs(const char *input, const char ***compilerArgs, const char **outputFileName)
+int parseCgcArgs(const char *input, const char ***compilerArgs, const char **outputFileName, char **bufferToFree)
 {
     char *inputCopy = strdup(input);
-    char *toFree = inputCopy;
+    *bufferToFree = inputCopy;
     char *token = strtok(inputCopy, " ");
     char **args = malloc(256 * sizeof(char *));
     int count = 0;
@@ -1014,7 +1014,6 @@ int parseCgcArgs(const char *input, const char ***compilerArgs, const char **out
     }
     (*compilerArgs)[argIndex] = NULL;
     free(args);
-    free(toFree);
     if (strcmp(profile, "vp40") == 0)
     {
         return 6150;
@@ -1215,9 +1214,9 @@ int compileWithCGC(char *command)
 {
     const char **compilerArgs = NULL;
     const char *outputFileName = NULL;
+    char *argsBuffer = NULL;
 
-    int profile = parseCgcArgs(command, &compilerArgs, &outputFileName);
-
+    int profile = parseCgcArgs(command, &compilerArgs, &outputFileName, &argsBuffer);
     size_t *ctx = _cgCreateContext();
 
     char *program = NULL;
@@ -1248,10 +1247,9 @@ int compileWithCGC(char *command)
 
     fprintf(outputFile, "%s", compiledSource);
     fclose(outputFile);
-
+    free(argsBuffer);
     _cgDestroyProgram(program);
     _cgDestroyContext(ctx);
-    free((void *)*compilerArgs);
     return 0;
 }
 

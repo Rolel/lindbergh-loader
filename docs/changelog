@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+
+## [2.1.3]
+### Added
+    - MJ4 Rev. A, MJ4 Rev. F and MJ4 Evolution Rev. B support.
+### Fixed
+    - Fixed a bug in the shader patching code that prevented the loader to compile shaders for non nVidia GPUs.
+
 ## [2.1.2]
 ### Added
     - Virtual Card file support for ID4 and ID5 (read the documentation).
