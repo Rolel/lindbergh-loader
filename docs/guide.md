@@ -36,8 +36,11 @@ The follow list of games are supported. It is worth noting that there are multip
 | Let's Go Jungle                                  | SBLU    | DVP-0011  | ✓      | ✓            | ✓          |                   |
 | Let's Go Jungle!  Rev A                          | SBLU    | DVP-0011A | ✓      | ✓            | ✓          |                   |
 | Let's Go Jungle Special                          | SBNR    | DVP-0036  | ✓      | ✓            | ✓          |                   |
-| SEGA Network Taisen Mahjong MJ4                  | SBPN    | DVP-0049G | ✓      | ✓            | ✓          | ✓                 |
+| SEGA Network Taisen Mahjong MJ4 Rev A            | SBPN    | DVP-0049A | ✓      | ✓            | ✓          | ✓                 |
+| SEGA Network Taisen Mahjong MJ4 Rev F            | SBPN    | DVP-0049F | ✓      | ✓            | ✓          | ✓                 |
+| SEGA Network Taisen Mahjong MJ4 Rev G            | SBPN    | DVP-0049G | ✓      | ✓            | ✓          | ✓                 |
 | SEGA Network Taisen Mahjong MJ4 Evolution        | SBTA    | DVP-0081  | ✓      | ✓            | ✓          | ✓                 |
+| SEGA Network Taisen Mahjong MJ4 Evolution Rev B  | SBTA    | DVP-0081B | ✓      | ✓            | ✓          | ✓                 |
 | Outrun 2 SP SDX                                  | SBMB    | DVP-0015  | ✓      | ✓            | ✓          | ✓                 |
 | Outrun 2 SP SDX Rev A                            | SBMB    | DVP-0015A | ✓      | ✓            | ✓          | ✓                 |
 | Primeval Hunt                                    | SBPP    | DVP-0048  | ✓      | ✓            | ✓          | ✓                 |

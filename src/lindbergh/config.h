@@ -37,8 +37,11 @@
 #define LETS_GO_JUNGLE 0xb1c8c901                            // DVP-0011
 #define LETS_GO_JUNGLE_REVA 0xc697c4fb                       // DVP-0011A
 #define LETS_GO_JUNGLE_SPECIAL 0x240beedc                    // DVP-0036A
+#define MJ4_REVA 0x6eb2a533                                  // DVP-0049A
+#define MJ4_REVF 0x220ac11                                   // DVP-0049F
 #define MJ4_REVG 0x57813a7                                   // DVP-0049G
 #define MJ4_EVO 0xb785a0e9                                   // DVP-0081
+#define MJ4_EVO_REVB 0x7f11d214                              // DVP-0081B
 #define OUTRUN_2_SP_SDX 0x92c196d5                           // DVP-0015
 #define OUTRUN_2_SP_SDX_REVA 0x4debd5f0                      // DVP-0015A
 #define OUTRUN_2_SP_SDX_REVA_TEST 0x6b2d5c46                 // DVP-0015A
@@ -133,6 +136,7 @@ typedef enum
     GROUP_ID4_JAP,
     GROUP_ID5,
     GROUP_LGJ,
+    GROUP_MJ4,
     GROUP_OUTRUN,
     GROUP_OUTRUN_TEST,
     GROUP_RAMBO,

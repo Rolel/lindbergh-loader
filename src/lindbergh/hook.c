@@ -1112,7 +1112,7 @@ ssize_t read(int fd, void *buf, size_t count)
             phRead(fd, buf, count);
             return 1;
         }
-        if ((gId == MJ4_EVO || gId == MJ4_REVG || gId == QUIZ_AXA || gId == QUIZ_AXA_LIVE) && getConfig()->emulateTouchscreen == 1 &&
+        if ((gGrp == GROUP_MJ4 || gId == QUIZ_AXA || gId == QUIZ_AXA_LIVE) && getConfig()->emulateTouchscreen == 1 &&
             mj4ResponseReady)
         {
             return mj4ReadTouchPacket(buf, count);
@@ -1293,7 +1293,7 @@ ssize_t write(int fd, const void *buf, size_t count)
             return driveboardWrite(fd, buf, count);
     }
 
-    if (fd == hooks[SERIAL1] && (gId == MJ4_EVO || gId == MJ4_REVG || gId == QUIZ_AXA || gId == QUIZ_AXA_LIVE))
+    if (fd == hooks[SERIAL1] && (gGrp == GROUP_MJ4 || gId == QUIZ_AXA || gId == QUIZ_AXA_LIVE))
     {
         return mj4WriteTouchPacket(buf, count);
     }
@@ -1336,7 +1336,7 @@ int ioctl(int fd, unsigned long int request, ...)
 
     if (fd == hooks[SERIAL0] || fd == hooks[SERIAL1])
     {
-        if (request == 0x541b && (gId == R_TUNED || gId == MJ4_REVG || gId == MJ4_EVO) && fd == hooks[SERIAL1])
+        if (request == 0x541b && (gId == R_TUNED || gGrp == GROUP_MJ4) && fd == hooks[SERIAL1])
         {
             uint8_t d = 1;
             memcpy(argp, &d, sizeof(uint8_t));
@@ -1730,7 +1730,7 @@ struct tm *localtime_r(const time_t *timep, struct tm *result)
 {
     struct tm *(*_gmtime_r)(const time_t *, struct tm *) = (struct tm * (*)(const time_t *, struct tm *)) dlsym(RTLD_NEXT, "gmtime_r");
 
-    if ((gId == MJ4_REVG || gId == MJ4_EVO) && getConfig()->mj4EnabledAtT == 1)
+    if ((gGrp == GROUP_MJ4) && getConfig()->mj4EnabledAtT == 1)
     {
         time_t target_time = 1735286445;
         struct tm *res = _gmtime_r(&target_time, result);

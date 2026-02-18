@@ -58,7 +58,7 @@ void blitSetWidthandHeightSize()
         blitWidth = 640;
         blitHeight = 480;
     }
-    else if (gId == QUIZ_AXA || gId == QUIZ_AXA_LIVE || gId == MJ4_REVG || gId == MJ4_EVO)
+    else if (gId == QUIZ_AXA || gId == QUIZ_AXA_LIVE || gGrp == GROUP_MJ4)
     {
         blitWidth = 1024;
         blitHeight = 768;

@@ -94,7 +94,9 @@ uint32_t cleanElfCRC32[] = {
     0xB0A96E34, // DVP-0043  | vf5
     0xF99E5635, // DVP-0044  | drive.elf
     0x4143F6B4, // DVP-0048A | main.exe
-    0x65489691, // DVP-0049  | mj4
+    0x93210094, // DVP-0049A | mj4
+    0x561DC942, // DVP-0049F | mj4
+    0x65489691, // DVP-0049G | mj4
     0x653BC83B, // DVP-0057  | a.elf
     0x04D88552, // DVP-0057B | a.elf
     0x089D6051, // DVP-0060  | dsr
@@ -108,6 +110,7 @@ uint32_t cleanElfCRC32[] = {
     0xDCC1f8E7, // DVP-0078  | ramboM.elf
     0x05647A8E, // DVP-0079  | hummer_Master.elf
     0x0AD7CF0F, // DVP-0081  | mj4
+    0xEE2D5861, // DVP-0081B | mj4
     0x4442EA15, // DVP-0083  | hummer_Master.elf
     0x8DF6BBF9, // DVP-0084  | id5.elf
     0x2AF8004E, // DVP-0084A | id5.elf

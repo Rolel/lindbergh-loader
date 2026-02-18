@@ -121,7 +121,7 @@ void startSDL(int *argcp, char **argv)
     SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
 
     if (gGrp == GROUP_ABC || gGrp == GROUP_VF5 || gId == R_TUNED || gId == GHOST_SQUAD_EVOLUTION || gId == SEGA_RACE_TV ||
-        gId == MJ4_REVG || gId == MJ4_EVO)
+        gGrp == GROUP_MJ4 )
     {
         SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 1);
     }
@@ -143,7 +143,7 @@ void startSDL(int *argcp, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    if (gId == GHOST_SQUAD_EVOLUTION || gId == MJ4_EVO || gId == MJ4_REVG)
+    if (gId == GHOST_SQUAD_EVOLUTION || gGrp == GROUP_MJ4)
         SDL_SetWindowSize(sdlWindow, gWidth, gHeight + 1);
 
     x11Display = (Display *)SDL_GetPointerProperty(SDL_GetWindowProperties(sdlWindow), SDL_PROP_WINDOW_X11_DISPLAY_POINTER, NULL);
@@ -222,7 +222,7 @@ void startSDL(int *argcp, char **argv)
           gId == GHOST_SQUAD_EVOLUTION || gId == PRIMEVAL_HUNT))
         initCrossHairs();
 
-    if ((gId == MJ4_REVG || gId == MJ4_EVO || gId == QUIZ_AXA || gId == QUIZ_AXA_LIVE) && strcmp(getConfig()->touchCursor, "") != 0 &&
+    if ((gGrp == GROUP_MJ4 || gId == QUIZ_AXA || gId == QUIZ_AXA_LIVE) && strcmp(getConfig()->touchCursor, "") != 0 &&
         getConfig()->emulateTouchscreen)
         setCursor(touchCursor);
     else if (getConfig()->hideCursor)
