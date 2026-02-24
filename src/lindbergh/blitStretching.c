@@ -22,6 +22,8 @@ extern SDL_Window *sdlWindow;
 int blitWidth = 0;
 int blitHeight = 0;
 
+int gameIsOutrunChihiroMode = 0;
+
 int fboInitialized = false;
 GLuint fboId = 0;
 GLuint fboTextureId = 0;
@@ -36,6 +38,30 @@ void initBlitting()
     blitSetWidthandHeightSize();
     blitInitializeFbo();
     dest.gameScale = 1.0f;
+
+    if(gGrp == GROUP_OUTRUN && getConfig()->width == 640)
+        gameIsOutrunChihiroMode = 1;
+}
+
+/**
+ * If the game is outrun in 640x480 mode we force the game to write to out temp framebuffer directly
+ * to avoid the framebuffer of the window being too small and the edges getting clipped off. So we
+ * hook glBindFramebuffer and if the game tries to bind the default framebuffer, we bind our FBO instead and
+ * set the viewport to 800x480 so the game renders to our FBO. Then in blitStretch we copy from our FBO to the
+ * screen with the correct aspect ratio.
+ */
+void glBindFramebufferEXT(GLenum target, GLuint framebuffer) {
+    void (*_glBindFramebufferEXT)(GLenum target, GLuint framebuffer) = dlsym(RTLD_NEXT, "glBindFramebufferEXT");
+
+    if(target == GL_FRAMEBUFFER_EXT && framebuffer == 0 && fboInitialized && gameIsOutrunChihiroMode)
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, fboId);
+        glViewport(0, 0, 800, 480);
+        glClear(GL_COLOR_BUFFER_BIT);
+        return;
+    }
+
+    _glBindFramebufferEXT(target, framebuffer);
 }
 
 void blitSetWidthandHeightSize()
@@ -121,14 +147,18 @@ void blitStretch()
     if (fboInitialized && fboId > 0 && fboTextureId > 0 && sdlWindow)
     {
         SDL_GetWindowSizeInPixels(sdlWindow, &drawableW, &drawableH);
-
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fboId);
-        glBlitFramebuffer(0, 0, blitWidth, blitHeight, 0, 0, blitWidth, blitHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-
-        float gameAspect = (float)blitWidth / (float)blitHeight;
         float windowAspect = (float)drawableW / (float)drawableH;
 
+        float gameAspect = 4.0 / 3.0;
+
+        if(!gameIsOutrunChihiroMode)
+        {
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fboId);
+            glBlitFramebuffer(0, 0, blitWidth, blitHeight, 0, 0, blitWidth, blitHeight, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+            gameAspect = (float)blitWidth / (float)blitHeight;
+        }
+    
         dest.W = drawableW;
         dest.H = drawableH;
 
@@ -142,7 +172,7 @@ void blitStretch()
             dest.H = (GLsizei)(drawableW / gameAspect);
             dest.Y = (drawableH - dest.H) / 2;
         }
-
+        
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -151,7 +181,14 @@ void blitStretch()
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
         glReadBuffer(GL_COLOR_ATTACHMENT0);
 
-        glBlitFramebuffer(0, 0, blitWidth, blitHeight, dest.X, dest.Y, dest.X + dest.W, dest.Y + dest.H, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+        if(gameIsOutrunChihiroMode)
+        {
+            glBlitFramebuffer(80, 0, blitWidth - 80, blitHeight, dest.X, dest.Y, dest.X + dest.W, dest.Y + dest.H, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+        }
+        else
+        {
+            glBlitFramebuffer(0, 0, blitWidth, blitHeight, dest.X, dest.Y, dest.X + dest.W, dest.Y + dest.H, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+        }
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }

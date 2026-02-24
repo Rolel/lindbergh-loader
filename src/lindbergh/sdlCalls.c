@@ -130,11 +130,18 @@ void startSDL(int *argcp, char **argv)
 
     strcat(sdlGameTitle, getGameName());
 
+    int windowWidth = gWidth;
+
+    if(gGrp == GROUP_OUTRUN && getConfig()->width == 640)
+    {
+        gWidth = 800;
+    }
+
     // Hacky way to make AxA games render the characters properly
     if (gId == QUIZ_AXA || gId == QUIZ_AXA_LIVE)
         sdlWindow = SDL_CreateWindow(sdlGameTitle, 1024, 768, windowFlags);
     else
-        sdlWindow = SDL_CreateWindow(sdlGameTitle, gWidth, gHeight, windowFlags);
+        sdlWindow = SDL_CreateWindow(sdlGameTitle, windowWidth, gHeight, windowFlags);
 
     if (!sdlWindow)
     {
@@ -172,11 +179,11 @@ void startSDL(int *argcp, char **argv)
 
     // If games are any of the LGJ or Primeval Hunt, we prevent the window to resize.
     if ((gGrp == GROUP_LGJ || gId == PRIMEVAL_HUNT) && !getConfig()->fullscreen)
-        SDL_SetWindowMaximumSize(sdlWindow, gWidth, gHeight);
+        SDL_SetWindowMaximumSize(sdlWindow, windowWidth, gHeight);
     else if (gGrp != GROUP_LGJ)
         SDL_SetWindowMaximumSize(sdlWindow, displayMode->w, displayMode->h);
 
-    SDL_SetWindowMinimumSize(sdlWindow, gWidth, gHeight);
+    SDL_SetWindowMinimumSize(sdlWindow, windowWidth, gHeight);
 
     // Hacky way to make AxA games render the characters properly
     if (gId == QUIZ_AXA || gId == QUIZ_AXA_LIVE)
