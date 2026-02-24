@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file.
 
 
+## [2.1.4]
+### Added
+    - Force Outrun to render properly in 4:3 when resolution is set to 640x480
+    to match the chihiro version of the game for use on CRT cabinets.
+
 ## [2.1.3]
 ### Added
     - MJ4 Rev. A, MJ4 Rev. F and MJ4 Evolution Rev. B support.
