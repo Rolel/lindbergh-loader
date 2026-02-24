@@ -200,11 +200,6 @@ void glViewport(GLint x, GLint y, GLsizei width, GLsizei height)
                 height = 480;
             }
         }
-
-        // Force proper 4:3 rendering at 640x480 to match Chihiro Version of game
-        if(addr == (void *)0x804d8cb && width == 640) { width = 800; x = x - 40;}
-        if(addr == (void *)0x80f4082 && width == 640) { width = 800; x = x - 40;}
-        if(addr == (void *)0x80fff23 && width == 640) { width = 800;}
     }
     else if (gId == SEGA_RACE_TV)
     {
@@ -300,7 +295,7 @@ void glTexImage2D(unsigned int target, int level, int internalformat, int width,
 {
     void (*_glTexImage2D)(unsigned int target, int level, int internalformat, int width, int height, int border, unsigned int format,
                           unsigned int type, const void *pixels) = dlsym(RTLD_NEXT, "glTexImage2D");
-   
+
     if (gGrp == GROUP_OUTRUN)
     {
         if (gWidth != 800 || gHeight != 480)
@@ -320,12 +315,6 @@ void glTexImage2D(unsigned int target, int level, int internalformat, int width,
                 width = 800;
                 height = 480;
             }
-        }
-
-        // Force proper 4:3 rendering at 640x480 to match Chihiro Version of game
-        if(width == 640)
-        {
-            width = 800;
         }
     }
     _glTexImage2D(target, level, internalformat, width, height, border, format, type, pixels);
